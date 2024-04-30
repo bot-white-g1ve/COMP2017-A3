@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <debug/debug.h>
+#include <utils/str.h>
 
 // PART 1
 
@@ -9,8 +11,24 @@
  * Loads the package for when a valid path is given
  */
 struct bpkg_obj* bpkg_load(const char* path) {
-    struct bpkg_obj* obj = NULL;
+    struct bpkg_obj* obj = malloc(sizeof(struct bpkg_obj));
+
+    FILE* bpkg_file = fopen(path, "r");
+    if (bpkg_file == NULL) {
+        d_print("bpkg_load", "Couldn't open the bpkg file");
+        return -1;
+    }
     
+    char file_line[1200];
+    char left[75];
+    char right[1025];
+    while (fgets(file_line, sizeof(file_line), bpkg_file) != NULL){
+        split_on_first_colon(file_line, left, right);
+        if (left == "ident"){
+
+        }
+    }
+
     return obj;
 }
 
@@ -98,8 +116,7 @@ void bpkg_query_destroy(struct bpkg_query* qry) {
  * make sure it has been completely deallocated
  */
 void bpkg_obj_destroy(struct bpkg_obj* obj) {
-    //TODO: Deallocate here!
-
+    free(obj);
 }
 
 

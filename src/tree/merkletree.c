@@ -1,3 +1,8 @@
 #include "merkletree.h"
 
-//Your code here!
+struct bt_node {
+    void* key;
+    void* value;
+    struct bt_node* left;
+    struct bt_node* right;
+};

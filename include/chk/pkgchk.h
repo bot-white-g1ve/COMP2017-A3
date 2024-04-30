@@ -2,6 +2,7 @@
 #define PKGCHK_H
 
 #include <stddef.h>
+#include <tree/merkletree.h>
 
 
 /**
@@ -17,7 +18,14 @@ struct bpkg_query {
 };
 
 //TODO: Provide a definition
-struct bpkg_obj;
+struct bpkg_obj{
+	char ident[1024];
+	char filename[256];
+	uint32_t size;
+	uint32_t nhashes;
+	uint32_t nchunks;
+	struct merkle_tree_node* root;
+};
 
 
 /**

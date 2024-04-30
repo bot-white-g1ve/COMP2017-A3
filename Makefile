@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -std=c2x -g -fsanitize=address
+CFLAGS=-Wall -Wvla -std=c2x -g -fsanitize=address
 LDFLAGS=-lm -lpthread
 INCLUDE=-Iinclude
 
@@ -9,7 +9,7 @@ INCLUDE=-Iinclude
 # to either objs/ or ./
 # In your directory
 pkgchk.o: src/chk/pkgchk.c
-	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS)
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
 
 
 pkgchecker: src/pkgmain.c src/chk/pkgchk.c
