@@ -1,15 +1,11 @@
 #ifndef PKGCHK_H
 #define PKGCHK_H
 
-<<<<<<< HEAD
-#include <stddef.h>
-=======
 #define IDENT_LEN (1024)
 #define FILENAME_LEN (256)
 
 #include <stddef.h>
 #include <stdint.h>
->>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 #include <tree/merkletree.h>
 
 
@@ -27,21 +23,12 @@ struct bpkg_query {
 
 //TODO: Provide a definition
 struct bpkg_obj{
-<<<<<<< HEAD
-	char ident[1024];
-	char filename[256];
-	uint32_t size;
-	uint32_t nhashes;
-	uint32_t nchunks;
-	struct merkle_tree_node* root;
-=======
 	char ident[IDENT_LEN];
 	char filename[FILENAME_LEN];
 	uint32_t size;
 	uint32_t nhashes;
 	uint32_t nchunks;
 	struct merkle_tree* merkle_tree;
->>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 };
 
 
