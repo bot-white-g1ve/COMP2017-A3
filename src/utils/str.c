@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-<<<<<<< HEAD
-=======
 #include <ctype.h>
->>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 
 void delete_newline_in_the_end(char* str){
     /** 
@@ -36,8 +33,6 @@ void split_on_first_colon(const char *input, char *left, char *right){
         left[0] = '\0';
         right[0] = '\0';
     }
-<<<<<<< HEAD
-=======
 }
 
 void delete_whitespace_in_the_front(char* str){
@@ -53,5 +48,4 @@ void delete_whitespace_in_the_front(char* str){
         str[j++] = str[i++];
     }
     str[j] = '\0';
->>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 }

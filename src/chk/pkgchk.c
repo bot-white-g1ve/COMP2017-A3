@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <ctype.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #include <chk/pkgchk.h>
 #include <debug/debug.h>
 #include <utils/str.h>
@@ -44,13 +50,13 @@ struct bpkg_obj* bpkg_load(const char* path) {
             strcpy(obj->filename, right);
         } else if (strcmp(left, "size") == 0){
             right_int = strtol(right, &endptr, 10);
-            if (*endptr != '\0'){
+            if (*endptr != '\0' && !isspace(*endptr)){
                 d_print("bpkg_load", "The string in field size is not a int");
             }
             obj->size = right_int;
         } else if (strcmp(left, "nhashes") == 0){
             right_int = strtol(right, &endptr, 10);
-            if (*endptr != '\0'){
+            if (*endptr != '\0' && !isspace(*endptr)){
                 d_print("bpkg_load", "The string in field nhashes is not a int");
             }
             obj->nhashes = right_int;
@@ -59,7 +65,7 @@ struct bpkg_obj* bpkg_load(const char* path) {
             obj->merkle_tree->root = root;
         } else if (strcmp(left, "nchunks") == 0){
             right_int = strtol(right, &endptr, 10);
-            if (*endptr != '\0'){
+            if (*endptr != '\0' && !isspace(*endptr)){
                 d_print("bpkg_load", "The string in field nchunks is not a int");
             }
             obj->nchunks = right_int;
@@ -76,6 +82,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
      * Used to construct non-leaf nodes from hashes field
      * Called by bpkg_load
     */
+    d_print("construct_non_leaf_nodes", "Start constructing non-leaf node");
     char file_line[1200];
     struct merkle_tree_node* root = malloc(sizeof(struct merkle_tree_node));
     root->left = NULL;
@@ -86,14 +93,14 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
     strcpy(root->expected_hash, file_line);
 
     struct Queue* queue = createQueue();
-    enqueue(queue, root);
+    enqueue(queue, (void*)root);
 
     for (int i = 0; i < nhashes; i++){
         fgets(file_line, sizeof(file_line), bpkg_file);
         delete_whitespace_in_the_front(file_line);
 
         // Get the parent
-        struct merkle_tree_node* parent = queue_get(queue);
+        struct merkle_tree_node* parent = (struct merkle_tree_node*)queue_get(queue);
 
         // Create current node
         struct merkle_tree_node* current = malloc(sizeof(struct merkle_tree_node));
@@ -107,8 +114,9 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
             parent->right = current;
             dequeue(queue); // The parent's left and right children are all set, so dequeue
         }
-        enqueue(queue, current); // The current node is queueing
+        enqueue(queue, (void*)current); // The current node is queueing
     }
+    d_print("construct_non_leaf_node", "The non-leaf nodes are successfully constructed");
 
     free_queue(queue);
 
@@ -125,7 +133,73 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
  *		If the file does not exist, hashes[0] should contain "File Created"
  */
 struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
-    ;
+    /**
+     * Check if the file exists, if not, create and fill it with 0
+     * Implemented with mmap
+    */
+    struct bpkg_query qry;
+    int fd;
+    qry.hashes = malloc(sizeof(char*));  // Allocate memory for a pointer to strings
+    if (!qry.hashes) {
+        d_print("bpkg_file_check", "Failed to allocate memory for qry.hashes (qry.hashse is a pointer to the pointer of the string)");
+        exit(EXIT_FAILURE);
+    }
+
+    qry.hashes[0] = malloc(64 * sizeof(char));  // Assume 64 bytes are enough to store the message
+    if (!qry.hashes[0]) {
+        d_print("bpkg_file_check", "Failed to allocate memory for qry.hashes[0]");
+        exit(EXIT_FAILURE);
+    }
+
+    fd = open(bpkg->filename, O_RDWR | O_CREAT | O_EXCL, 0666);
+    if (fd == -1) {
+        if (errno == EEXIST) {
+            // File already exists
+            strcpy(qry.hashes[0], "File Exists");
+            d_print("bpkg_file_check", "The file exists");
+            qry.len = 1;
+        } else {
+            // Error occurred while attempting to open file
+            d_print("bpkg_file_check", "Failed to open the file");
+            free(qry.hashes[0]);
+            free(qry.hashes);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        // File did not exist and was created
+        strcpy(qry.hashes[0], "File Created");
+        d_print("bpkg_file_check", "File not exists, create");
+        qry.len = 1;
+
+        // Ensure file size is correct
+        if (ftruncate(fd, bpkg->size) == -1) {
+            d_print("bpkg_file_check", "Failed to truncate the file");
+            close(fd);
+            free(qry.hashes[0]);
+            free(qry.hashes);
+            exit(EXIT_FAILURE);
+        }
+
+        // Memory-map the file
+        void *addr = mmap(NULL, bpkg->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (addr == MAP_FAILED) {
+            d_print("bpkg_file_check", "Failed to memory-map the file");
+            close(fd);
+            free(qry.hashes[0]);
+            free(qry.hashes);
+            exit(EXIT_FAILURE);
+        }
+
+        // Initialize file content to zero
+        memset(addr, 0, bpkg->size);
+        d_print("bpkg_file_check","fill 0 into the created file");
+
+        // Cleanup mapping and file descriptor
+        munmap(addr, bpkg->size);
+    }
+
+    close(fd);
+    return qry;
 }
 
 /**
@@ -136,6 +210,8 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
  */
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj* bpkg) {
     struct bpkg_query qry = { 0 };
+
+    
     
     return qry;
 }
