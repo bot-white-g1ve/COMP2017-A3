@@ -15,6 +15,7 @@
 #include <utils/queue.h>
 
 struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhashes);
+struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FILE* bpkg_file, uint32_t nchunks);
 
 // PART 1
 
@@ -70,7 +71,7 @@ struct bpkg_obj* bpkg_load(const char* path) {
             }
             obj->nchunks = right_int;
         } else if (strcmp(left, "chunks") == 0){
-            ;
+            obj->merkle_tree->root = construct_leaf_nodes(obj->merkle_tree->root, bpkg_file, obj->nchunks);
         }
     }
 
@@ -82,7 +83,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
      * Used to construct non-leaf nodes from hashes field
      * Called by bpkg_load
     */
-    d_print("construct_non_leaf_nodes", "Start constructing non-leaf node");
+    d_print("construct_non_leaf_nodes", "Start constructing non-leaf nodes");
     char file_line[1200];
     struct merkle_tree_node* root = malloc(sizeof(struct merkle_tree_node));
     root->left = NULL;
@@ -106,6 +107,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
         struct merkle_tree_node* current = malloc(sizeof(struct merkle_tree_node));
         current->left = NULL;
         current->right = NULL;
+        current->is_leaf = 0;
         strcpy(current->expected_hash, file_line);
 
         if (parent->left == NULL){
@@ -121,6 +123,44 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
     free_queue(queue);
 
     return root;
+}
+
+struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FILE* bpkg_file, uint32_t nchunks){
+    d_print("construct_leaf_nodes", "Start constructing leaf nodes");
+    char file_line[1200];
+
+    struct Queue* queue = createQueue();
+    enqueue(queue, (void*)root); // Start from the root for linking leaves
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
+        if (parent->left != NULL) enqueue(queue, parent->left);
+        if (parent->right != NULL) enqueue(queue, parent->right);
+    }
+
+    for (int i = 0; i < nchunks; i++) {
+        if (fgets(file_line, sizeof(file_line), bpkg_file) == NULL) break;
+        delete_whitespace_in_the_front(file_line);
+
+        struct merkle_tree_node* leaf = malloc(sizeof(struct merkle_tree_node));
+        leaf->left = NULL;
+        leaf->right = NULL;
+        strcpy(leaf->expected_hash, file_line);
+        leaf->is_leaf = 1; // Mark this node as a leaf node
+
+        if (!is_queue_empty(queue)) {
+            struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
+            if (parent->left == NULL) {
+                parent->left = leaf;
+            } else if (parent->right == NULL) {
+                parent->right = leaf;
+            }
+        }
+    }
+
+    free_queue(queue);
+    d_print("construct_leaf_nodes", "Leaf nodes construction completed");
+    return root; // Return the updated tree with leaves
 }
 
 /**
@@ -211,7 +251,7 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj* bpkg) {
     struct bpkg_query qry = { 0 };
 
-    
+
     
     return qry;
 }

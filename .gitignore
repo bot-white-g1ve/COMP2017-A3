@@ -1,3 +1,5 @@
 objs
 resources
 .vscode
+.DS_Store
+*.data

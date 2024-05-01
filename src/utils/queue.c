@@ -80,3 +80,11 @@ void free_queue(struct Queue* queue) {
     }
     free(queue);
 }
+
+int is_queue_empty(struct Queue* queue) {
+    /**
+     * Check if the queue is empty
+     * Return 1 if the queue is empty, otherwise return 0
+     */
+    return queue->front == NULL;
+}
