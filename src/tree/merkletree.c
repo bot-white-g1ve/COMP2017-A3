@@ -1,8 +1,28 @@
-#include "merkletree.h"
+#include <tree/merkletree.h>
+#include <stdlib.h>
 
-struct bt_node {
-    void* key;
-    void* value;
-    struct bt_node* left;
-    struct bt_node* right;
-};
+void free_merkle_tree(struct merkle_tree* tree){
+    /**
+     * Free the whole merkle tree
+    */
+    recursive_free_nodes(tree->root);
+    free(tree);
+}
+
+void recursive_free_nodes(struct merkle_tree_node* root){
+    /**
+     * Called by free_merkle_tree
+    */
+    if (root == NULL) {
+        return;
+    }
+
+    // Recursively free left subtree
+    recursive_free_nodes(root->left);
+
+    // Recursively free right subtree
+    recursive_free_nodes(root->right);
+
+    // Free current node
+    free(root);
+}

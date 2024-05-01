@@ -9,16 +9,29 @@ INCLUDE=-Iinclude
 # to either objs/ or ./
 # In your directory
 pkgchk.o: src/chk/pkgchk.c
+<<<<<<< HEAD
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
 
 
 pkgchecker: src/pkgmain.c src/chk/pkgchk.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
+=======
+	if [ ! -d "objs" ]; then mkdir objs; fi
+	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
+
+
+pkgchecker: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
+>>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./
 btide: src/btide.c
+<<<<<<< HEAD
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
+=======
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o pbjs/$@
+>>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 
 # Alter your build for p1 tests to build unit-tests for your
 # merkle tree, use pkgchk to help with what to test for

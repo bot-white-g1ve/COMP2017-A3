@@ -21,4 +21,10 @@ struct merkle_tree {
     size_t n_nodes;
 };
 
+<<<<<<< HEAD
+=======
+extern void free_merkle_tree(struct merkle_tree* tree);
+extern void recursive_free_nodes(struct merkle_tree_node* root);
+
+>>>>>>> 5e5cc2a (finish constructing non-leaf nodes)
 #endif
