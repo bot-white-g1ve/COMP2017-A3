@@ -3,3 +3,4 @@ resources
 .vscode
 .DS_Store
 *.data
+debug.txt

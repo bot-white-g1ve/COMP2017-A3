@@ -2,6 +2,7 @@
 #define MERKLE_TREE_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #define SHA256_HEXLEN (64)
 
@@ -11,6 +12,8 @@ struct merkle_tree_node {
     struct merkle_tree_node* left;
     struct merkle_tree_node* right;
     int is_leaf;
+    uint32_t offset_in_file;
+    uint32_t size_in_file;
     char expected_hash[SHA256_HEXLEN];
     char computed_hash[SHA256_HEXLEN];
 };

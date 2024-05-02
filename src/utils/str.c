@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <ctype.h>
+#include <utils/str.h>
 
 void delete_newline_in_the_end(char* str){
     /** 
@@ -48,4 +51,39 @@ void delete_whitespace_in_the_front(char* str){
         str[j++] = str[i++];
     }
     str[j] = '\0';
+}
+
+struct split_on_comma_return split_on_comma(const char* str){
+    /**
+     * Split the string according to comma
+     * data.hash needed to be freed after calling
+    */
+    struct split_on_comma_return result;
+    char buffer[256];
+    strcpy(buffer, str); // Copy the input into the buffer
+
+    char* token = strtok(buffer, ",");
+    if (token == NULL) {
+        fprintf(stderr, "Error parsing input: Cannot find hash.\n");
+        exit(EXIT_FAILURE);
+    }
+    result.hash = strdup(token); // Malloc and copy
+
+    token = strtok(NULL, ",");
+    if (token == NULL) {
+        fprintf(stderr, "Error parsing input: Cannot find offset.\n");
+        free(result.hash);
+        exit(EXIT_FAILURE);
+    }
+    result.offset = strtoul(token, NULL, 10); // transform to uint32_t
+
+    token = strtok(NULL, ",");
+    if (token == NULL) {
+        fprintf(stderr, "Error parsing input: Cannot find length.\n");
+        free(result.hash);
+        exit(EXIT_FAILURE);
+    }
+    result.size = strtoul(token, NULL, 10); // transform to uint32_t
+
+    return result;
 }

@@ -14,6 +14,8 @@
 #include <tree/merkletree.h>
 #include <utils/queue.h>
 
+#define SHA256_HEXLEN (64)
+
 struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhashes);
 struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FILE* bpkg_file, uint32_t nchunks);
 
@@ -84,21 +86,24 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
      * Called by bpkg_load
     */
     d_print("construct_non_leaf_nodes", "Start constructing non-leaf nodes");
-    char file_line[1200];
+    char file_line[100];
     struct merkle_tree_node* root = malloc(sizeof(struct merkle_tree_node));
     root->left = NULL;
     root->right = NULL;
 
     fgets(file_line, sizeof(file_line), bpkg_file);
     delete_whitespace_in_the_front(file_line);
+    delete_newline_in_the_end(file_line);
     strcpy(root->expected_hash, file_line);
 
     struct Queue* queue = createQueue();
     enqueue(queue, (void*)root);
-
-    for (int i = 0; i < nhashes; i++){
+    
+    for (int i = 0; i < nhashes-1; i++){ //The root has already been processed
         fgets(file_line, sizeof(file_line), bpkg_file);
         delete_whitespace_in_the_front(file_line);
+        delete_newline_in_the_end(file_line);
+        d_print("construct_non_leaf_nodes", "read from bpkg file: %s", file_line);
 
         // Get the parent
         struct merkle_tree_node* parent = (struct merkle_tree_node*)queue_get(queue);
@@ -126,33 +131,45 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
 }
 
 struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FILE* bpkg_file, uint32_t nchunks){
-    d_print("construct_leaf_nodes", "Start constructing leaf nodes");
-    char file_line[1200];
+    d_print("construct_leaf_nodes", "Start constructing leaf nodes with nchunks %u", nchunks);
+    char file_line[100];
 
     struct Queue* queue = createQueue();
     enqueue(queue, (void*)root); // Start from the root for linking leaves
 
     while (!is_queue_empty(queue)) {
         struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
-        if (parent->left != NULL) enqueue(queue, parent->left);
-        if (parent->right != NULL) enqueue(queue, parent->right);
+        if (parent->left != NULL){
+            enqueue(queue, (void*)parent->left);
+        }else if (parent->left == NULL){
+            break;
+        }
+        if (parent->right != NULL) enqueue(queue, (void*)parent->right);
     }
 
     for (int i = 0; i < nchunks; i++) {
         if (fgets(file_line, sizeof(file_line), bpkg_file) == NULL) break;
         delete_whitespace_in_the_front(file_line);
+        delete_newline_in_the_end(file_line);
+        d_print("construct_leaf_nodes", "The file line read in current loop is %s", file_line);
+        struct split_on_comma_return splited_file_line = split_on_comma(file_line);
 
         struct merkle_tree_node* leaf = malloc(sizeof(struct merkle_tree_node));
         leaf->left = NULL;
         leaf->right = NULL;
-        strcpy(leaf->expected_hash, file_line);
+        strcpy(leaf->expected_hash, splited_file_line.hash);
+        free(splited_file_line.hash);
+        leaf->offset_in_file = splited_file_line.offset;
+        leaf->size_in_file = splited_file_line.size;
         leaf->is_leaf = 1; // Mark this node as a leaf node
 
         if (!is_queue_empty(queue)) {
             struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
             if (parent->left == NULL) {
+                d_print("construst_leaf_nodes", "We have assgined the leaf to parent's left");
                 parent->left = leaf;
             } else if (parent->right == NULL) {
+                d_print("construst_leaf_nodes", "We have assgined the leaf to parent's right");
                 parent->right = leaf;
             }
         }
@@ -251,8 +268,47 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
 struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj* bpkg) {
     struct bpkg_query qry = { 0 };
 
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_all_hashes", "Invalid Merkle tree data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
 
-    
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    // Temporary storage for collecting hashes
+    qry.hashes = malloc((bpkg->nchunks+bpkg->nhashes) * sizeof(char*));
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_all_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        // Allocate memory for each hash and copy it
+        qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
+        if (qry.hashes[count] == NULL) {
+            d_print("bpkg_get_all_hashes", "Failed to allocate memory for a hash.");
+            exit(EXIT_FAILURE);
+        }
+        //d_print("bpkg_get_all_hashes", "In the current loop, the expected hash is %s", current->expected_hash);
+        strcpy(qry.hashes[count], current->expected_hash);
+        count++;
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;  // Set the length of the hash array
+    free_queue(queue);  // Clean up the queue
     return qry;
 }
 
@@ -308,9 +364,27 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg,
  * the relevant queries above.
  */
 void bpkg_query_destroy(struct bpkg_query* qry) {
-    //TODO: Deallocate here!
-
+    //d_print("bpkg_query_destroy", "function entered");
+    // Check if the query structure pointer is not NULL
+    if (qry != NULL) {
+        d_print("bpkg_query_destroy", "freeing bpkg_query");
+        // Check if there is an array of hash pointers
+        if (qry->hashes != NULL) {
+            // Free each dynamically allocated hash string
+            for (size_t i = 0; i < qry->len; i++) {
+                if (qry->hashes[i] != NULL) {
+                    free(qry->hashes[i]);
+                }
+            }
+            // Free the array holding the hash pointers
+            free(qry->hashes);
+        }
+        // Free the query structure itself if it was dynamically allocated
+        // This step depends on how 'qry' was allocated; remove if not applicable
+        //free(qry);
+    }
 }
+
 
 /**
  * Deallocates memory at the end of the program,
