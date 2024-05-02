@@ -138,13 +138,14 @@ struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FIL
     enqueue(queue, (void*)root); // Start from the root for linking leaves
 
     while (!is_queue_empty(queue)) {
-        struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
+        struct merkle_tree_node* parent = (struct merkle_tree_node*)queue_get(queue);
         if (parent->left != NULL){
             enqueue(queue, (void*)parent->left);
         }else if (parent->left == NULL){
             break;
         }
         if (parent->right != NULL) enqueue(queue, (void*)parent->right);
+        dequeue(queue);
     }
 
     for (int i = 0; i < nchunks; i++) {
@@ -164,13 +165,14 @@ struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FIL
         leaf->is_leaf = 1; // Mark this node as a leaf node
 
         if (!is_queue_empty(queue)) {
-            struct merkle_tree_node* parent = (struct merkle_tree_node*)dequeue(queue);
+            struct merkle_tree_node* parent = (struct merkle_tree_node*)queue_get(queue);
             if (parent->left == NULL) {
                 d_print("construst_leaf_nodes", "We have assgined the leaf to parent's left");
                 parent->left = leaf;
             } else if (parent->right == NULL) {
                 d_print("construst_leaf_nodes", "We have assgined the leaf to parent's right");
                 parent->right = leaf;
+                dequeue(queue);
             }
         }
     }
