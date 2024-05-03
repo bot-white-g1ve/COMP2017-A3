@@ -104,5 +104,10 @@ void bpkg_query_destroy(struct bpkg_query* qry);
  */
 void bpkg_obj_destroy(struct bpkg_obj* obj);
 
+/**
+ * The functions below are used for self-testing
+*/
+extern struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg);
+
 #endif
 

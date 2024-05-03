@@ -19,6 +19,9 @@ pkgchecker: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src
 pkgmain: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
+pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
+
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./
 btide: src/btide.c

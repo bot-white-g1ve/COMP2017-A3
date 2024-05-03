@@ -314,6 +314,61 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj* bpkg) {
     return qry;
 }
 
+struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg){
+    /**
+     * Getting all the chunks
+     * This function is not used if following the specification
+     * I am just using it for self-testing of the merkle tree
+    */
+   struct bpkg_query qry = { 0 };
+
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_all_hashes", "Invalid Merkle tree data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    // Temporary storage for collecting hashes
+    qry.hashes = malloc((bpkg->nchunks+bpkg->nhashes) * sizeof(char*));
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_all_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+         if (current->is_leaf == 1) {
+            // Allocate memory for each hash and copy it
+            qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
+            if (qry.hashes[count] == NULL) {
+                d_print("bpkg_get_all_hashes", "Failed to allocate memory for a hash.");
+                exit(EXIT_FAILURE);
+            }
+       
+            //d_print("bpkg_get_all_chunks", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
+            strcpy(qry.hashes[count], current->expected_hash);
+            count++;
+        }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;  // Set the length of the hash array
+    free_queue(queue);  // Clean up the queue
+    return qry;
+}
+
 /**
  * Retrieves all completed chunks of a package object
  * @param bpkg, constructed bpkg object
@@ -328,9 +383,8 @@ struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj* bpkg) {
 
 /**
  * Gets the mininum of hashes to represented the current completion state
- * Example: If chunks representing start to mid have been completed but
- * 	mid to end have not been, then we will have (N_CHUNKS/2) + 1 hashes
- * 	outputted
+ * Gets only the required/min hashes to represent the current completion state
+ * Return the smallest set of hashes of completed branches to represent the completion state of the file.
  *
  * @param bpkg, constructed bpkg object
  * @return query_result, This structure will contain a list of hashes
@@ -353,12 +407,78 @@ struct bpkg_query bpkg_get_min_completed_hashes(struct bpkg_obj* bpkg) {
  * @return query_result, This structure will contain a list of hashes
  * 		and the number of hashes that have been retrieved
  */
-struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg, 
-    char* hash) {
-    
+struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg, char* hash) {
     struct bpkg_query qry = { 0 };
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || hash == NULL) {
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "Invalid input data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
+
+    // Find the node with the given hash
+    struct merkle_tree_node* root = bpkg->merkle_tree->root;
+    struct Queue* queue = createQueue();
+    enqueue(queue, (void*)root);
+    struct merkle_tree_node* target_node = NULL;
+
+    while (!is_queue_empty(queue) && target_node == NULL) {
+        struct merkle_tree_node* current = (struct merkle_tree_node*)dequeue(queue);
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "the current expected hash is %s", current->expected_hash);
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "the hash wanted is %.64s", hash);
+        if (strncmp(current->expected_hash, hash, SHA256_HEXLEN) == 0) {
+            target_node = current;
+            break;
+        }
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    free_queue(queue);
+
+    if (target_node == NULL) {
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "No node found with the given hash.\n");
+        return qry;
+    }
+
+    // Collect all hashes from the target node's subtree
+    queue = createQueue();
+    enqueue(queue, target_node);
+    qry.hashes = malloc((bpkg->nchunks + bpkg->nhashes) * sizeof(char*));  // Assume enough space for all hashes
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = (struct merkle_tree_node*)dequeue(queue);
+        if (current->is_leaf == 1) {
+            qry.hashes[count] = malloc(SHA256_HEXLEN + 1);  // Allocate space for each hash
+            if (qry.hashes[count] == NULL) {
+                d_print("bpkg_get_all_chunk_hashes_from_hash", "Failed to allocate memory for a hash.");
+                exit(EXIT_FAILURE);
+            }
+            d_print("bpkg_get_all_chunk_hashes_from_hash", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
+            strcpy(qry.hashes[count], current->expected_hash);
+            count++;
+        }
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;
+    free_queue(queue);
+
     return qry;
 }
+
 
 
 /**
