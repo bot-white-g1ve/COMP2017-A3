@@ -19,3 +19,8 @@ Related function: bpkg_get_all_chunk_hashes_from_hash
 Parse valid .bpkg file and read from .data file, ensure the program can verify if every chunk is completed, or if some chunks are incompleted
 
 Related function: bpkg_get_completed_chunks
+
+# p1t5
+Parse valid .bpkg file and determine if .data file exists or not. If exists, print out. If not, print out and create
+
+Related function: bpkg_file_check

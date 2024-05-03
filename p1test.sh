@@ -12,4 +12,5 @@ objs/pkgchecker resources/pkgs/file1.bpkg -hashes_of 0b3c5b3cb770cc33d192d6a3bea
 diff tests/p1t2/file1.chunks2 tests/p1t2/file1.chunks_exp2
 
 # p1t3 test
-cd tests/p1t3 ; ../../objs/pkgchecker file1.bpkg -chunk_check ; cd ../..
+cd tests/p1t3 ; ../../objs/pkgchecker file1.bpkg -chunk_check ; cd ../.. > ./tests/p1t3/file1.completed_chunks1
+diff tests/p1t3/file1.completed_chunks1 tests/p1t3/file1.completed_chunks_exp1
