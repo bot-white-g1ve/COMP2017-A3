@@ -6,7 +6,10 @@ objs/pkgchecker resources/pkgs/file1.bpkg -all_hashes > ./tests/p1t1/file1.all_h
 diff tests/p1t1/file1.all_hashes tests/p1t1/file1.all_hashes_exp
 
 # p1t2 test
-objs/pkgchecker resources/pkgs/file1.bpkg -hashes_of 8d26a4b8b8c566e6dd33d6ac273bba1c15c9538f053554fc0e40b7eed8b902dc > ./tests/p1t2/file1.all_chunks1
+objs/pkgchecker resources/pkgs/file1.bpkg -hashes_of 4e4dcf5cb1f3cfb33e5b93f760f79fc34a5b627454081f586685b808b972107e > ./tests/p1t2/file1.all_chunks1
 diff tests/p1t2/file1.all_chunks1 tests/p1t2/file1.all_chunks_exp1
-objs/pkgchecker resources/pkgs/file1.bpkg -hashes_of 46f9db9c0951037a119545595f33cc025b6ed99a752ff15930e1a462862f30c7 > ./tests/p1t2/file1.chunks2
+objs/pkgchecker resources/pkgs/file1.bpkg -hashes_of 0b3c5b3cb770cc33d192d6a3bea451eac2949278fc30b34e678a4428de2d651f > ./tests/p1t2/file1.chunks2
 diff tests/p1t2/file1.chunks2 tests/p1t2/file1.chunks_exp2
+
+# p1t3 test
+cd tests/p1t3 ; ../../objs/pkgchecker file1.bpkg -chunk_check ; cd ../..

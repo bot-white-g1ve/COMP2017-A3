@@ -374,6 +374,7 @@ struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg){
 void check_chunk_completed(struct merkle_tree_node* node, void* binary_data, size_t binary_data_size){
     /**
      * Compute the sha256 hex from binary data and write to node's computed hash
+     * Called by check_chunks_comleted
     */
     struct sha256_compute_data sha_data;
 
@@ -401,6 +402,7 @@ void check_chunk_completed(struct merkle_tree_node* node, void* binary_data, siz
 void check_chunks_completed(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes){
     /**
      * Compute the sha_256 hash for all the leaf nodes in the tree
+     * Called by bpkg_get_completed_chunks
     */
    FILE* file = fopen(data_filepath, "rb"); // Read binary file
     if (!file) {
@@ -622,8 +624,8 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg, cha
 
     while (!is_queue_empty(queue) && target_node == NULL) {
         struct merkle_tree_node* current = (struct merkle_tree_node*)dequeue(queue);
-        d_print("bpkg_get_all_chunk_hashes_from_hash", "the current expected hash is %s", current->expected_hash);
-        d_print("bpkg_get_all_chunk_hashes_from_hash", "the hash wanted is %.64s", hash);
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "the current expected hash is %.*s", SHA256_HEXLEN, current->expected_hash);
+        d_print("bpkg_get_all_chunk_hashes_from_hash", "the hash wanted is  %.*s", SHA256_HEXLEN, hash);
         if (strncmp(current->expected_hash, hash, SHA256_HEXLEN) == 0) {
             target_node = current;
             break;
@@ -661,7 +663,7 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg, cha
                 d_print("bpkg_get_all_chunk_hashes_from_hash", "Failed to allocate memory for a hash.");
                 exit(EXIT_FAILURE);
             }
-            d_print("bpkg_get_all_chunk_hashes_from_hash", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
+            d_print("bpkg_get_all_chunk_hashes_from_hash", "The expected hash (in leaf) in current loop is %.*s", SHA256_HEXLEN, current->expected_hash);
             strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
             count++;
         }
