@@ -88,9 +88,9 @@ struct split_on_comma_return split_on_comma(const char* str){
     return result;
 }
 
-void add_edd_null(char* str, size_t size){
+void delete_edd_null(char* str, size_t size){
     /**
-     * Add \0 to the end of the string
+     * Delete \0 in the end of the string
      * Unfinished
     */
     ;

@@ -13,13 +13,13 @@ pkgchk.o: src/chk/pkgchk.c
 	$(CC) -c $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
 
 
-pkgchecker: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
+pkgchecker: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c src/crypt/sha256.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
 
-pkgmain: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
+pkgmain: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c src/crypt/sha256.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
-pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c
+pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c src/crypt/sha256.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
 
 # Required for Part 2 - Make sure it outputs `btide` file

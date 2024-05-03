@@ -34,7 +34,7 @@ int arg_select(int argc, char** argv, int* asel, char* harg) {
 	}
 	if(strcmp(cursor, "-hashes_of") == 0) {
 		if(argc < 4) {
-			puts("filename not provided");
+			puts("hash not provided");
 			exit(1);
 		}
 		*asel = 4;
@@ -51,6 +51,14 @@ int arg_select(int argc, char** argv, int* asel, char* harg) {
 	if (strcmp(cursor, "-all_chunks") == 0) {
 		*asel = 6;
 	}
+	if(strcmp(cursor, "-all_computed") == 0) {
+		if(argc < 4) {
+			puts("data file path not provided");
+			exit(1);
+		}
+		*asel = 7;
+		strcpy(harg, argv[3]);
+	}
 	return *asel;
 }
 
@@ -65,10 +73,10 @@ void bpkg_print_hashes(struct bpkg_query* qry) {
 int main(int argc, char** argv) {
 	
 	int argselect = 0;
-	char hash[SHA256_HEX_LEN];
+	char arg[256];
 
 
-	if(arg_select(argc, argv, &argselect, hash)) {
+	if(arg_select(argc, argv, &argselect, arg)) {
 		struct bpkg_query qry = { 0 };
 		struct bpkg_obj* obj = bpkg_load(argv[1]);
 		
@@ -94,7 +102,7 @@ int main(int argc, char** argv) {
 		} else if(argselect == 4) {
 
 			qry = bpkg_get_all_chunk_hashes_from_hash(obj, 
-					hash);
+					arg);
 			bpkg_print_hashes(&qry);
 			bpkg_query_destroy(&qry);
 		} else if(argselect == 5) {
@@ -104,6 +112,11 @@ int main(int argc, char** argv) {
 			bpkg_query_destroy(&qry);
 		} else if (argselect == 6) {
 			qry = bpkg_get_all_chunks(obj);
+			bpkg_print_hashes(&qry);
+			bpkg_query_destroy(&qry);
+		} else if (argselect == 7){
+			check_chunks_completed(obj->merkle_tree->root, arg, obj->nchunks);
+			qry = bpkg_get_all_chunks_computed(obj);
 			bpkg_print_hashes(&qry);
 			bpkg_query_destroy(&qry);
 		}

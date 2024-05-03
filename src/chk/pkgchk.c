@@ -13,6 +13,7 @@
 #include <utils/str.h>
 #include <tree/merkletree.h>
 #include <utils/queue.h>
+#include <crypt/sha256.h>
 
 #define SHA256_HEXLEN (64)
 
@@ -62,6 +63,7 @@ struct bpkg_obj* bpkg_load(const char* path) {
             if (*endptr != '\0' && !isspace(*endptr)){
                 d_print("bpkg_load", "The string in field nhashes is not a int");
             }
+            d_print("bpkg_load", "The right_int in nhashes field is %d", right_int);
             obj->nhashes = right_int;
         } else if (strcmp(left, "hashes") == 0){
             struct merkle_tree_node* root = construct_non_leaf_nodes(bpkg_file, obj->nhashes);
@@ -94,7 +96,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
     fgets(file_line, sizeof(file_line), bpkg_file);
     delete_whitespace_in_the_front(file_line);
     delete_newline_in_the_end(file_line);
-    strcpy(root->expected_hash, file_line);
+    strncpy(root->expected_hash, file_line, SHA256_HEXLEN);
 
     struct Queue* queue = createQueue();
     enqueue(queue, (void*)root);
@@ -113,7 +115,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
         current->left = NULL;
         current->right = NULL;
         current->is_leaf = 0;
-        strcpy(current->expected_hash, file_line);
+        strncpy(current->expected_hash, file_line, SHA256_HEXLEN);
 
         if (parent->left == NULL){
             parent->left = current;
@@ -158,7 +160,7 @@ struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FIL
         struct merkle_tree_node* leaf = malloc(sizeof(struct merkle_tree_node));
         leaf->left = NULL;
         leaf->right = NULL;
-        strcpy(leaf->expected_hash, splited_file_line.hash);
+        strncpy(leaf->expected_hash, splited_file_line.hash, SHA256_HEXLEN);
         free(splited_file_line.hash);
         leaf->offset_in_file = splited_file_line.offset;
         leaf->size_in_file = splited_file_line.size;
@@ -297,7 +299,7 @@ struct bpkg_query bpkg_get_all_hashes(struct bpkg_obj* bpkg) {
             exit(EXIT_FAILURE);
         }
         //d_print("bpkg_get_all_hashes", "In the current loop, the expected hash is %s", current->expected_hash);
-        strcpy(qry.hashes[count], current->expected_hash);
+        strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
         count++;
 
         // Enqueue child nodes
@@ -332,7 +334,7 @@ struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg){
     enqueue(queue, bpkg->merkle_tree->root);
 
     // Temporary storage for collecting hashes
-    qry.hashes = malloc((bpkg->nchunks+bpkg->nhashes) * sizeof(char*));
+    qry.hashes = malloc((bpkg->nchunks) * sizeof(char*));
     if (qry.hashes == NULL) {
         d_print("bpkg_get_all_hashes", "Failed to allocate memory for hash array.");
         exit(EXIT_FAILURE);
@@ -351,7 +353,152 @@ struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg){
             }
        
             //d_print("bpkg_get_all_chunks", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
-            strcpy(qry.hashes[count], current->expected_hash);
+            strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
+            count++;
+        }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;  // Set the length of the hash array
+    free_queue(queue);  // Clean up the queue
+    return qry;
+}
+
+void check_chunk_completed(struct merkle_tree_node* node, void* binary_data, size_t binary_data_size){
+    /**
+     * Compute the sha256 hex from binary data and write to node's computed hash
+    */
+    struct sha256_compute_data sha_data;
+
+    // init sha256 computing
+    sha256_compute_data_init(&sha_data);
+
+    // provide binary to the computing algorithm
+    sha256_update(&sha_data, binary_data, binary_data_size);
+
+    // finalize computation
+    uint8_t hash_output[SHA256_INT_SZ]; 
+    sha256_finalize(&sha_data, hash_output);
+
+    // prepare some space for the hash
+    char hash_hex[SHA256_HEXLEN];
+
+    // Get hex format of the hash
+    sha256_output_hex(&sha_data, hash_hex);
+
+    strncpy(node->computed_hash, hash_hex, SHA256_HEXLEN);
+
+    return;
+}
+
+void check_chunks_completed(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes){
+    /**
+     * Compute the sha_256 hash for all the leaf nodes in the tree
+    */
+   FILE* file = fopen(data_filepath, "rb"); // Read binary file
+    if (!file) {
+        d_print("check_chunks_completed", "Failed to open file");
+        return;
+    }
+
+    // Get the size
+    fseek(file, 0, SEEK_END);
+    size_t filesize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    d_print("check_chunks_completed", "the file size is %zu", filesize);
+
+    // Compute size for every chunk
+    size_t chunk_size = (filesize + nhashes - 1) / nhashes;
+    d_print("check_chunks_completed", "the nhashes is %d", nhashes);
+    d_print("check_chunks_completed", "the chunk size is %zu", chunk_size);
+    size_t read_size;
+    uint8_t* buffer = malloc(chunk_size);
+
+    if (!buffer) {
+        fclose(file);
+        d_print("check_chunks_completed", "Memory allocation failed for buffer");
+        return;
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, root);
+
+    int count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+         if (current->is_leaf == 1) {
+            read_size = fread(buffer, 1, chunk_size, file);
+            if (read_size == 0) {
+                break; // File end or read error
+            }
+            d_print("check_chunks_completed", "check_chunk_complete ready to call for node with expected hash %.*s", SHA256_HEXLEN, current->expected_hash);
+            check_chunk_completed(current, buffer, read_size);
+            d_print("check_chunks_completed", "check_chunk_complete called for node with expected hash %.*s", SHA256_HEXLEN, current->expected_hash);
+            count += 1;
+        }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+    d_print("check_chunks_completed", "The number of chunks are %d", count);
+
+    free(buffer);
+    free_queue(queue);
+    fclose(file);
+}
+
+struct bpkg_query bpkg_get_all_chunks_computed(struct bpkg_obj* bpkg){
+    /**
+     * Get all the computed hashes from the leaves
+     * Used for self-testing
+    */
+   struct bpkg_query qry = { 0 };
+
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_all_hashes", "Invalid Merkle tree data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    // Temporary storage for collecting hashes
+    qry.hashes = malloc((bpkg->nchunks) * sizeof(char*));
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_all_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+         if (current->is_leaf == 1) {
+            // Allocate memory for each hash and copy it
+            qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
+            if (qry.hashes[count] == NULL) {
+                d_print("bpkg_get_all_hashes", "Failed to allocate memory for a hash.");
+                exit(EXIT_FAILURE);
+            }
+       
+            //d_print("bpkg_get_all_chunks", "The expected hash (in leaf) in current loop is %s", current->computed_hash);
+            strncpy(qry.hashes[count], current->computed_hash, SHA256_HEXLEN);
             count++;
         }
 
@@ -376,7 +523,60 @@ struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg){
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj* bpkg) { 
+
+    check_chunks_completed(bpkg->merkle_tree->root, bpkg->filename, bpkg->nchunks);
+
     struct bpkg_query qry = { 0 };
+    
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_completed_hashes", "Invalid Merkle tree data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    // Temporary storage for collecting hashes
+    qry.hashes = malloc((bpkg->nchunks) * sizeof(char*));
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_completed_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        if (current->is_leaf == 1){
+            d_print("bpkg_get_completed_hashes", "The expected hash for node in current loop is %.*s", SHA256_HEXLEN, current->expected_hash);
+            d_print("bpkg_get_completed_hashes", "The computed hash for node in current loop is %.*s", SHA256_HEXLEN, current->computed_hash);
+        } 
+
+        if (current->is_leaf == 1 && strncmp(current->computed_hash, current->expected_hash, SHA256_HEXLEN) == 0) {
+            // Allocate memory for each hash and copy it
+            qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
+            if (qry.hashes[count] == NULL) {
+                d_print("bpkg_get_completed_hashes", "Failed to allocate memory for a hash.");
+                exit(EXIT_FAILURE);
+            }
+       
+            //d_print("bpkg_get_completed_chunks", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
+            strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
+            count++;
+        }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;  // Set the length of the hash array
+    free_queue(queue);  // Clean up the queue
     return qry;
 }
 
@@ -462,7 +662,7 @@ struct bpkg_query bpkg_get_all_chunk_hashes_from_hash(struct bpkg_obj* bpkg, cha
                 exit(EXIT_FAILURE);
             }
             d_print("bpkg_get_all_chunk_hashes_from_hash", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
-            strcpy(qry.hashes[count], current->expected_hash);
+            strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
             count++;
         }
         if (current->left != NULL) {
