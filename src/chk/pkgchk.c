@@ -464,6 +464,10 @@ void check_chunks_completed(struct merkle_tree_node* root, const char* data_file
     fclose(file);
 }
 
+void check_tree_completed(struct merkle_tree_node* root){
+    ;
+}
+
 struct bpkg_query bpkg_get_all_chunks_computed(struct bpkg_obj* bpkg){
     /**
      * Get all the computed hashes from the leaves
