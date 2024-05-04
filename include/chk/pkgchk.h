@@ -110,6 +110,8 @@ void bpkg_obj_destroy(struct bpkg_obj* obj);
 extern struct bpkg_query bpkg_get_all_chunks(struct bpkg_obj* bpkg);
 extern void check_chunks_completed(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes);
 extern struct bpkg_query bpkg_get_all_chunks_computed(struct bpkg_obj* bpkg);
+extern void check_tree_completed(struct merkle_tree_node* root);
+extern struct bpkg_query bpkg_get_all_hashes_computed(struct bpkg_obj* bpkg);
 
 #endif
 

@@ -22,3 +22,13 @@ void d_print(const char* func, const char* format, ...) {
     fprintf(fp, "\n");
     fclose(fp);
 }
+
+int contains_null(const char *str, size_t len){
+    /**
+     * Check if the string contains a null character
+    */
+    for (size_t i = 0; i < len; i++){
+        if (str[i] == '\0') return 1;
+    }
+    return 0; // If not found
+}

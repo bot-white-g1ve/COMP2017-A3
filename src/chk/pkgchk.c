@@ -465,7 +465,45 @@ void check_chunks_completed(struct merkle_tree_node* root, const char* data_file
 }
 
 void check_tree_completed(struct merkle_tree_node* root){
-    ;
+    /**
+     * From the leaves, compute the computed hash of the whole merkle tree
+    */
+    //d_print("check_tree_completed", "flag1 reached");
+    if (!root) return;  // Basic error detection
+    //d_print("check_tree_completed", "flag2 reached");
+
+    // Return if leaves
+    if (root->is_leaf == 1) return;
+    //d_print("check_tree_completed", "flag3 reached");
+
+    // Recursively compute hash for left and right
+    if (root->left) {
+        check_tree_completed(root->left);
+    }
+    if (root->right) {
+        check_tree_completed(root->right);
+    }
+
+    // Space for storing the combined hash of the left and the right
+    char combined_hashes[2 * SHA256_HEXLEN+1]; 
+
+    if (root->left && root->right) {
+        strncpy(combined_hashes, root->left->computed_hash, SHA256_HEXLEN);
+        combined_hashes[SHA256_HEXLEN] = '\0';
+        strncat(combined_hashes, root->right->computed_hash, SHA256_HEXLEN);
+    } else if (root->left) {
+        // If only left, not likely happen
+        strncpy(combined_hashes, root->left->computed_hash, SHA256_HEXLEN);
+    } else if (root->right) {
+        // If only right, not likely happen
+        strncpy(combined_hashes, root->right->computed_hash, SHA256_HEXLEN);
+    } else {
+        // No children, not likely happen
+        return;
+    }
+
+    d_print("check_tree_completed", "For parent with expected hash %.*s, the combined hash is %.*s", SHA256_HEXLEN, root->expected_hash, 2*SHA256_HEXLEN, combined_hashes);
+    check_chunk_completed(root, combined_hashes, strlen(combined_hashes));
 }
 
 struct bpkg_query bpkg_get_all_chunks_computed(struct bpkg_obj* bpkg){
@@ -507,6 +545,57 @@ struct bpkg_query bpkg_get_all_chunks_computed(struct bpkg_obj* bpkg){
             strncpy(qry.hashes[count], current->computed_hash, SHA256_HEXLEN);
             count++;
         }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    qry.len = count;  // Set the length of the hash array
+    free_queue(queue);  // Clean up the queue
+    return qry;
+}
+
+struct bpkg_query bpkg_get_all_hashes_computed(struct bpkg_obj* bpkg){
+    /**
+     * Get all computed hashes of all the nodes
+     * Used for self-testing
+    */
+   struct bpkg_query qry = { 0 };
+
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_all_hashes", "Invalid Merkle tree data.\n");
+        return qry;  // Return empty query result if input is invalid
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    // Temporary storage for collecting hashes
+    qry.hashes = malloc((bpkg->nchunks+bpkg->nhashes) * sizeof(char*));
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_all_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        // Allocate memory for each hash and copy it
+        qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
+        if (qry.hashes[count] == NULL) {
+            d_print("bpkg_get_all_hashes", "Failed to allocate memory for a hash.");
+            exit(EXIT_FAILURE);
+        }
+        //d_print("bpkg_get_all_hashes", "In the current loop, the expected hash is %s", current->expected_hash);
+        strncpy(qry.hashes[count], current->computed_hash, SHA256_HEXLEN);
+        count++;
 
         // Enqueue child nodes
         if (current->left != NULL) {
@@ -597,7 +686,56 @@ struct bpkg_query bpkg_get_completed_chunks(struct bpkg_obj* bpkg) {
  * 		and the number of hashes that have been retrieved
  */
 struct bpkg_query bpkg_get_min_completed_hashes(struct bpkg_obj* bpkg) {
-    struct bpkg_query qry = { 0 };
+    check_chunks_completed(bpkg->merkle_tree->root, bpkg->filename, bpkg->nchunks);
+	check_tree_completed(bpkg->merkle_tree->root);
+
+    struct bpkg_query qry = {0};
+
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_min_completed_hashes", "Invalid input data.");
+        return qry;  // Return an empty result if input is invalid
+    }
+
+    // Initialize the queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+    qry.hashes = malloc((bpkg->nchunks + bpkg->nhashes) * sizeof(char*)); // Assume the worst case
+    if (qry.hashes == NULL) {
+        d_print("bpkg_get_min_completed_hashes", "Failed to allocate memory for hash array.");
+        exit(EXIT_FAILURE);
+    }
+
+    size_t count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        d_print("bpkg_get_min_completed_hashes", "For node in current loop, the computed hash is %.*s", SHA256_HEXLEN, current->computed_hash);
+        
+        if (strncmp(current->computed_hash, current->expected_hash, SHA256_HEXLEN) == 0) {
+            // If computed hash matches the expected hash, this subtree is complete and correct
+            qry.hashes[count] = malloc(SHA256_HEXLEN);
+            if (qry.hashes[count] == NULL) {
+                d_print("bpkg_get_min_completed_hashes", "Failed to allocate memory for a hash.");
+                exit(EXIT_FAILURE);
+            }
+            strncpy(qry.hashes[count], current->computed_hash, SHA256_HEXLEN);
+            count++;
+            // Do not enqueue children because this subtree is verified
+        } else {
+            // If hashes do not match, enqueue children to check them
+            if (current->left != NULL) {
+                enqueue(queue, current->left);
+            }
+            if (current->right != NULL) {
+                enqueue(queue, current->right);
+            }
+        }
+    }
+
+    qry.len = count;  // Set the number of valid hashes
+    free_queue(queue);  // Clean up the queue
+
     return qry;
 }
 

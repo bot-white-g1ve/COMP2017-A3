@@ -51,12 +51,20 @@ int arg_select(int argc, char** argv, int* asel, char* harg) {
 	if (strcmp(cursor, "-all_chunks") == 0) {
 		*asel = 6;
 	}
-	if(strcmp(cursor, "-all_computed") == 0) {
+	if(strcmp(cursor, "-all_chunks_com") == 0) {
 		if(argc < 4) {
 			puts("data file path not provided");
 			exit(1);
 		}
 		*asel = 7;
+		strcpy(harg, argv[3]);
+	}
+	if (strcmp(cursor, "-all_hashes_com") == 0){
+		if(argc < 4) {
+			puts("data file path not provided");
+			exit(1);
+		}
+		*asel = 8;
 		strcpy(harg, argv[3]);
 	}
 	return *asel;
@@ -117,6 +125,12 @@ int main(int argc, char** argv) {
 		} else if (argselect == 7){
 			check_chunks_completed(obj->merkle_tree->root, arg, obj->nchunks);
 			qry = bpkg_get_all_chunks_computed(obj);
+			bpkg_print_hashes(&qry);
+			bpkg_query_destroy(&qry);
+		} else if (argselect == 8){
+			check_chunks_completed(obj->merkle_tree->root, arg, obj->nchunks);
+			check_tree_completed(obj->merkle_tree->root);
+			qry = bpkg_get_all_hashes_computed(obj);
 			bpkg_print_hashes(&qry);
 			bpkg_query_destroy(&qry);
 		}

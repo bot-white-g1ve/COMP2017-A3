@@ -20,6 +20,11 @@ Parse valid .bpkg file and read from .data file, ensure the program can verify i
 
 Related function: bpkg_get_completed_chunks
 
+# p1t4
+Parse valid .bpkg file and read from .data file, ensure the problem can verify if every chunk is completed, or if some chunks are incompleted. Then get the mininum of hashes to represented the current completion state
+
+Related function: bpkg_get_min_completed_chunks
+
 # p1t5
 Parse valid .bpkg file and determine if .data file exists or not. If exists, print out. If not, print out and create
 
