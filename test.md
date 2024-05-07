@@ -1,6 +1,8 @@
 # Structure
 All the testcases are put in tests folder
 
+NOTE: Please be adviced that the .data or other binaries in tests folder are used for testing and it is impossible to remove them without influencing the testing. According to the ed post, it is allowed as I specify here.
+
 naming: p1t1 means part 1 testcase 1
 
 p1test.sh and p2test.sh will automatically run all the tests

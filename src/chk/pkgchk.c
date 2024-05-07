@@ -200,6 +200,8 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
     */
     struct bpkg_query qry;
     int fd;
+    struct stat st;
+
     qry.hashes = malloc(sizeof(char*));  // Allocate memory for a pointer to strings
     if (!qry.hashes) {
         d_print("bpkg_file_check", "Failed to allocate memory for qry.hashes (qry.hashse is a pointer to the pointer of the string)");
@@ -209,57 +211,71 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
     qry.hashes[0] = malloc(64 * sizeof(char));  // Assume 64 bytes are enough to store the message
     if (!qry.hashes[0]) {
         d_print("bpkg_file_check", "Failed to allocate memory for qry.hashes[0]");
+        free(qry.hashes);
         exit(EXIT_FAILURE);
     }
 
-    fd = open(bpkg->filename, O_RDWR | O_CREAT | O_EXCL, 0666);
-    if (fd == -1) {
-        if (errno == EEXIST) {
-            // File already exists
-            strcpy(qry.hashes[0], "File Exists");
-            d_print("bpkg_file_check", "The file exists");
-            qry.len = 1;
-        } else {
-            // Error occurred while attempting to open file
-            d_print("bpkg_file_check", "Failed to open the file");
-            free(qry.hashes[0]);
-            free(qry.hashes);
+    if (access(bpkg->filename, F_OK) == 0){
+        // File exists
+        strcpy(qry.hashes[0], "File Exists");
+        d_print("bpkg_file_check", "The file exists");
+        qry.len = 1;
+        if (stat(bpkg->filename, &st) == 0){
+            off_t actual_size = st.st_size;
+            if (actual_size == bpkg->size){
+                d_print("bpkg_file_check", "The size of the existing file is correct");
+                ;
+            } else if (actual_size != bpkg->size){
+                fd = open(bpkg->filename, O_RDWR);
+                if (fd == -1){
+                    d_print("bpkg_file_check", "File exists. Error opening file");
+                    exit(EXIT_FAILURE);
+                }
+
+                if (ftruncate(fd, bpkg->size) == -1) {
+                    d_print("bpkg_file_check", "File exists. Error truncating file");
+                    close(fd);
+                    exit(EXIT_FAILURE);
+                }
+
+                d_print("bpkg_file_check", "File size adjusted with ftruncate");
+                close(fd);
+            }
+        }else{
+            d_print("bpkg_file_check", "File exists. Error getting file stats");
             exit(EXIT_FAILURE);
         }
     } else {
-        // File did not exist and was created
-        strcpy(qry.hashes[0], "File Created");
-        d_print("bpkg_file_check", "File not exists, create");
-        qry.len = 1;
+        // File does not exist, create it
+        fd = open(bpkg->filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if (fd == -1) {
+            d_print("bpkg_file_check", "Error creating file");
+            exit(EXIT_FAILURE);
+        }
 
-        // Ensure file size is correct
         if (ftruncate(fd, bpkg->size) == -1) {
-            d_print("bpkg_file_check", "Failed to truncate the file");
+            d_print("bpkg_file_check", "Error setting initial file size");
             close(fd);
-            free(qry.hashes[0]);
-            free(qry.hashes);
             exit(EXIT_FAILURE);
         }
 
-        // Memory-map the file
-        void *addr = mmap(NULL, bpkg->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (addr == MAP_FAILED) {
-            d_print("bpkg_file_check", "Failed to memory-map the file");
+        // Map the file and fill with zeros
+        void *map = mmap(NULL, bpkg->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (map == MAP_FAILED) {
+            d_print("bpkg_file_check", "Error mapping the new file");
             close(fd);
-            free(qry.hashes[0]);
-            free(qry.hashes);
             exit(EXIT_FAILURE);
         }
 
-        // Initialize file content to zero
-        memset(addr, 0, bpkg->size);
-        d_print("bpkg_file_check","fill 0 into the created file");
+        memset(map, 0, bpkg->size); // Set all bytes to zero
+        munmap(map, bpkg->size);    // Unmap the file from memory
 
-        // Cleanup mapping and file descriptor
-        munmap(addr, bpkg->size);
+        strcpy(qry.hashes[0], "File Created");
+        d_print("bpkg_file_check", "File not exists, created and initialized to size");
+        qry.len = 1;
+        close(fd);
     }
 
-    close(fd);
     return qry;
 }
 

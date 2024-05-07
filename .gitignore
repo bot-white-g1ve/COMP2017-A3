@@ -2,5 +2,6 @@ objs
 resources
 .vscode
 .DS_Store
-*.data
+*.DSYM
 debug.txt
+tests
