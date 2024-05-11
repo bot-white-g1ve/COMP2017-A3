@@ -67,6 +67,9 @@ int arg_select(int argc, char** argv, int* asel, char* harg) {
 		*asel = 8;
 		strcpy(harg, argv[3]);
 	}
+	if (strcmp(cursor, "-load_bpkg") == 0){
+		*asel = 9;
+	}
 	return *asel;
 }
 
@@ -74,8 +77,18 @@ int arg_select(int argc, char** argv, int* asel, char* harg) {
 void bpkg_print_hashes(struct bpkg_query* qry) {
 	for(int i = 0; i < qry->len; i++) {
 		printf("%.64s\n", qry->hashes[i]);
+	}	
+}
+
+void bpkg_print_bpkg(struct bpkg_obj* obj){
+	if (NULL == obj){
+		printf("The bpkg object is NULL\n");
 	}
-	
+	printf("ident: %s\n", obj->ident);
+	printf("filename: %s\n", obj->filename);
+	printf("size: %u\n", obj->size);
+	printf("nchunks: %u\n", obj->nchunks);
+	printf("nhashes: %u\n", obj->nhashes);
 }
 
 int main(int argc, char** argv) {
@@ -133,11 +146,14 @@ int main(int argc, char** argv) {
 			qry = bpkg_get_all_hashes_computed(obj);
 			bpkg_print_hashes(&qry);
 			bpkg_query_destroy(&qry);
+		} else if (argselect == 9){
+			bpkg_print_bpkg(obj);
 		}
         else {
 			puts("Argument is invalid");
 			return 1;
 		}
+
 		bpkg_obj_destroy(obj);
 
 	}

@@ -14,6 +14,7 @@
 #include <tree/merkletree.h>
 #include <utils/queue.h>
 #include <crypt/sha256.h>
+#include <stdbool.h>
 
 #define SHA256_HEXLEN (64)
 
@@ -28,13 +29,18 @@ struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FIL
  */
 struct bpkg_obj* bpkg_load(const char* path) {
     struct bpkg_obj* obj = malloc(sizeof(struct bpkg_obj));
+    if (!obj) {
+        d_print("bpkg_load", "Memory allocation failed for bpkg_obj");
+        return NULL;
+    }
 
     FILE* bpkg_file = fopen(path, "r");
     if (bpkg_file == NULL) {
         d_print("bpkg_load", "Couldn't open the bpkg file");
-        exit(EXIT_FAILURE);
+        free(obj);
+        return NULL;
     }
-    
+
     char file_line[1200];
     char left[75];
     char right[1025];
@@ -43,40 +49,67 @@ struct bpkg_obj* bpkg_load(const char* path) {
     struct merkle_tree* tree = malloc(sizeof(struct merkle_tree));
     obj->merkle_tree = tree;
 
+    // Flags to ensure all required fields are read
+    bool ident_found = false, filename_found = false, size_found = false;
+    bool nhashes_found = false, nchunks_found = false;
+
     // read the file and load into obj  
     while (fgets(file_line, sizeof(file_line), bpkg_file) != NULL){
         split_on_first_colon(file_line, left, right);
         if (strcmp(left, "ident") == 0){
             delete_newline_in_the_end(right);
             strcpy(obj->ident, right);
+            ident_found = true;
         } else if (strcmp(left, "filename") == 0){
             delete_newline_in_the_end(right);
             strcpy(obj->filename, right);
+            filename_found = true;
         } else if (strcmp(left, "size") == 0){
             right_int = strtol(right, &endptr, 10);
             if (*endptr != '\0' && !isspace(*endptr)){
-                d_print("bpkg_load", "The string in field size is not a int");
+                d_print("bpkg_load", "The string in field size is not an int");
+                fclose(bpkg_file);
+                free(obj);
+                return NULL;
             }
             obj->size = right_int;
+            size_found = true;
         } else if (strcmp(left, "nhashes") == 0){
             right_int = strtol(right, &endptr, 10);
             if (*endptr != '\0' && !isspace(*endptr)){
-                d_print("bpkg_load", "The string in field nhashes is not a int");
+                d_print("bpkg_load", "The string in field nhashes is not an int");
+                fclose(bpkg_file);
+                free(obj);
+                return NULL;
             }
             d_print("bpkg_load", "The right_int in nhashes field is %d", right_int);
             obj->nhashes = right_int;
+            nhashes_found = true;
         } else if (strcmp(left, "hashes") == 0){
             struct merkle_tree_node* root = construct_non_leaf_nodes(bpkg_file, obj->nhashes);
             obj->merkle_tree->root = root;
         } else if (strcmp(left, "nchunks") == 0){
             right_int = strtol(right, &endptr, 10);
             if (*endptr != '\0' && !isspace(*endptr)){
-                d_print("bpkg_load", "The string in field nchunks is not a int");
+                d_print("bpkg_load", "The string in field nchunks is not an int");
+                fclose(bpkg_file);
+                free(obj);
+                return NULL;
             }
             obj->nchunks = right_int;
+            nchunks_found = true;
         } else if (strcmp(left, "chunks") == 0){
             obj->merkle_tree->root = construct_leaf_nodes(obj->merkle_tree->root, bpkg_file, obj->nchunks);
         }
+    }
+
+    fclose(bpkg_file);
+
+    // Check if all required fields were found
+    if (!(ident_found && filename_found && size_found && nhashes_found && nchunks_found)) {
+        d_print("bpkg_load", "Not all required fields were found");
+        free(obj);
+        return NULL;
     }
 
     return obj;
@@ -415,10 +448,11 @@ void check_chunk_completed(struct merkle_tree_node* node, void* binary_data, siz
     return;
 }
 
-void check_chunks_completed(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes){
+void check_chunks_completed_fix_size(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes){
     /**
      * Compute the sha_256 hash for all the leaf nodes in the tree
-     * Called by bpkg_get_completed_chunks
+     * Here we assume every chunk is in the same size
+     * Used in self auto-testing
     */
    FILE* file = fopen(data_filepath, "rb"); // Read binary file
     if (!file) {
@@ -476,6 +510,58 @@ void check_chunks_completed(struct merkle_tree_node* root, const char* data_file
     d_print("check_chunks_completed", "The number of chunks are %d", count);
 
     free(buffer);
+    free_queue(queue);
+    fclose(file);
+}
+
+void check_chunks_completed(struct merkle_tree_node* root, const char* data_filepath, const uint32_t nhashes) {
+    FILE* file = fopen(data_filepath, "rb");
+    if (!file) {
+        d_print("check_chunks_completed", "Failed to open file");
+        return;
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, root);
+
+    uint8_t* buffer;
+    size_t read_size;
+    int count = 0;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        if (current->is_leaf == 1) {
+            buffer = malloc(current->size_in_file); // Allocate buffer according to size_in_file
+            if (!buffer) {
+                d_print("check_chunks_completed", "Memory allocation failed for buffer");
+                break;
+            }
+
+            read_size = fread(buffer, 1, current->size_in_file, file);
+            if (read_size == 0) {
+                free(buffer);
+                break; // Error reading
+            }
+
+            d_print("check_chunks_completed", "check_chunk_complete ready to call for node with expected hash %.*s", SHA256_HEXLEN, current->expected_hash);
+            check_chunk_completed(current, buffer, read_size);
+            d_print("check_chunks_completed", "check_chunk_complete called for node with expected hash %.*s", SHA256_HEXLEN, current->expected_hash);
+            count += 1;
+
+            free(buffer); // Free after reading
+        }
+
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    d_print("check_chunks_completed", "The number of chunks are %d", count);
     free_queue(queue);
     fclose(file);
 }
