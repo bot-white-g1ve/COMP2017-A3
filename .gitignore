@@ -5,3 +5,4 @@ resources
 *.DSYM
 debug.txt
 tests
+debug_*.txt
