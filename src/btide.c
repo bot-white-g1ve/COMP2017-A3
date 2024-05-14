@@ -11,6 +11,8 @@
 //
 // PART 2
 //
+char directory[PATH_MAX_LEN] = {0};
+
 int process_command(char* command);
 
 int main(int argc, char** argv) {
@@ -30,6 +32,7 @@ int main(int argc, char** argv) {
     d_print("main", "Directory: %s", config->directory);
     d_print("main", "Max Peers: %d", config->max_peers);
     d_print("main", "Port: %u", config->port);
+    strcpy(directory, config->directory);
 
     pthread_t thread1, thread2;
 
@@ -149,6 +152,7 @@ int process_command(char* command){
             return 1;
         }
 
+        remove_peer(token);
         printf("Disconnected from peer\n");
         return 1;
     }

@@ -201,9 +201,41 @@ int is_peer_exist(const char* peer) {
 void print_peer_list() {
     pthread_mutex_lock(&peer_list_mutex);
 
+    if (peer_count == 0){
+        printf("Not connected to any peers\n");
+        pthread_mutex_unlock(&peer_list_mutex);
+        return;
+    }
+
     for (int i = 0; i < peer_count; i++) {
         printf("%d. %s\n", i + 1, peer_list[i]);
     }
 
     pthread_mutex_unlock(&peer_list_mutex);
 }
+
+void remove_peer(const char* peer) {
+    pthread_mutex_lock(&peer_list_mutex);
+
+    int found_index = -1;
+    for (int i = 0; i < peer_count; i++) {
+        if (strcmp(peer_list[i], peer) == 0) {
+            found_index = i;
+            break;
+        }
+    }
+
+    if (found_index != -1) {
+        // Move elements forward
+        for (int i = found_index; i < peer_count - 1; i++) {
+            strcpy(peer_list[i], peer_list[i + 1]);
+        }
+        peer_count--;  // Decrease peer_count
+        d_print("remove_peer", "Removed peer: %s", peer);
+    } else {
+        d_print("remove_peer", "Peer not found: %s", peer);
+    }
+
+    pthread_mutex_unlock(&peer_list_mutex);
+}
+
