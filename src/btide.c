@@ -6,6 +6,7 @@
 #include <peer.h>
 #include <pthread.h>
 #include <string.h>
+#include <chk/pkgchk.h>
 
 //
 // PART 2

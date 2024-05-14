@@ -109,6 +109,7 @@ struct bpkg_obj* bpkg_load(const char* path) {
     // Check if all required fields were found
     if (!(ident_found && filename_found && size_found && nhashes_found && nchunks_found)) {
         d_print("bpkg_load", "Not all required fields were found");
+        printf("Unable to parse bpkg file");
         free(obj);
         return NULL;
     }
