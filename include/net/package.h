@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #define PAYLOAD_MAX (4092)
+#define IDENTIFIER_LEN (1024)
+#define HASH_LEN (64)
 
 #define PKT_MSG_ACK 0x0c
 #define PKT_MSG_ACP 0x02
@@ -21,11 +23,8 @@ union btide_payload {
 
 struct btide_packet {
     uint16_t msg_code;
-    uint16_t error
+    uint16_t error;
     union btide_payload pl;
 };
-
-
-
 
 #endif
