@@ -137,7 +137,7 @@ void *client_thread(void* arg) {
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         d_error("client_thread", "Connection failed");
-        printf("Unable to connect to request peer");
+        printf("Unable to connect to request peer\n");
         close(sock);
         free(((char**)arg)[0]);
         free(((char**)arg)[1]);
@@ -162,7 +162,7 @@ void *client_thread(void* arg) {
         send(sock, &ACK_packet, sizeof(struct btide_packet), 0);
         d_print("client_thread", "Send packet with msg_code %hu", ACK_packet.msg_code);
 
-        printf("Connection established with peer");
+        printf("Connection established with peer\n");
     }
 
     // Close the socket

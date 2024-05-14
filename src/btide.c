@@ -53,7 +53,7 @@ void* cli_thread(void* arg){
     char input[MAX_CLI_INPUT];
     int return_code;
 
-    printf("Welcome to btide, enter your commands below\n");
+    //printf("Welcome to btide, enter your commands below\n");
 
     while (1){
         // Read from standard input
@@ -103,14 +103,14 @@ int process_command(char* command){
             d_error("process_command", "No second token");
             return 0;
         } else if (is_peer_exist(token)){
-            printf("Already connected to peer");
+            printf("Already connected to peer\n");
             return 1;
         }
 
         char* ip = strtok(token, ":");
         char* port_str = strtok(NULL, ":");
         if (ip == NULL || port_str == NULL) {
-            printf("Missing address and port argument");
+            printf("Missing address and port argument\n");
             return 1;
         }
 
@@ -136,6 +136,8 @@ int process_command(char* command){
         if (token == NULL) {
             d_error("process_command", "No second token");
             return 0;
+        } if (!is_peer_exist(token)){
+
         }
     }
 
