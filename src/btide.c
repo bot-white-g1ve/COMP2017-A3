@@ -137,7 +137,7 @@ int process_command(char* command){
             d_error("process_command", "No second token");
             return 0;
         } if (!is_peer_exist(token)){
-            printf("Unknown peer,not connected\n")
+            printf("Unknown peer,not connected\n");
             return 1;
         }
 
@@ -153,9 +153,17 @@ int process_command(char* command){
     }
 
     else if (strcmp(token, "PEERS") == 0){
-        printf("Connected to:\n\n")
+        printf("Connected to:\n\n");
         print_peer_list();
         return 1;
+    }
+
+    else if (strcmp(token, "ADDPACKAGE") == 0){
+        token = strtok(NULL, " ");
+        if (token == NULL) {
+            printf("Missing file argument\n");
+            return 1;
+        }
     }
 
     return 0;

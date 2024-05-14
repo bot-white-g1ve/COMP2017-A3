@@ -201,7 +201,6 @@ int is_peer_exist(const char* peer) {
 void print_peer_list() {
     pthread_mutex_lock(&peer_list_mutex);
 
-    printf("Connected to:\n");
     for (int i = 0; i < peer_count; i++) {
         printf("%d. %s\n", i + 1, peer_list[i]);
     }
