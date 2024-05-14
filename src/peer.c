@@ -230,7 +230,7 @@ void remove_peer(const char* peer) {
         for (int i = found_index; i < peer_count - 1; i++) {
             strcpy(peer_list[i], peer_list[i + 1]);
         }
-        peer_count--;  // Decrease peer_count
+        peer_count--;
         d_print("remove_peer", "Removed peer: %s", peer);
     } else {
         d_print("remove_peer", "Peer not found: %s", peer);
