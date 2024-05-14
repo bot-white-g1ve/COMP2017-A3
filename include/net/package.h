@@ -27,4 +27,7 @@ struct btide_packet {
     union btide_payload pl;
 };
 
+extern struct btide_packet create_small_packet(uint16_t msg_code);
+extern struct btide_packet create_req_packet(const char *identifier, const char *chunk_hash, uint32_t offset, uint16_t data_len);
+
 #endif

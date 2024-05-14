@@ -1,12 +1,19 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-void d_init(){
-    FILE *fp = fopen("debug.txt", "a");
+int port = 0;
+
+void d_init(int p){
+    char filename[256];
+    snprintf(filename, sizeof(filename), "debug_%d.txt", port);
+
+    FILE *fp = fopen(filename, "a");
     if (fp == NULL) {
         perror("Failed to create file");
         return;
     }
+
+    port = p;
 
     fprintf(fp, "\n");
     fprintf(fp, "(In main) Program init\n");
@@ -15,8 +22,11 @@ void d_init(){
 }
 
 void d_print(const char* func, const char* format, ...) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "debug_%d.txt", port);
+
     // Open file, if not exist, create.
-    FILE *fp = fopen("debug.txt", "a");
+    FILE *fp = fopen(filename, "a");
     if (fp == NULL) {
         perror("Failed to create file");
         return;
@@ -37,16 +47,19 @@ void d_print(const char* func, const char* format, ...) {
 }
 
 void d_error(const char* func, const char* format, ...) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "debug_%d.txt", port);
+
     // Print to standard error
     va_list args;
     va_start(args, format);
-    fprintf(stderr, "(In %s) Error: ", func);
-    vfprintf(stderr, format, args);
-    fprintf(stderr, "\n");
+    // fprintf(stderr, "(In %s) Error: ", func);
+    // vfprintf(stderr, format, args);
+    // fprintf(stderr, "\n");
     va_end(args);
 
     // Open file, otherwise create
-    FILE *fp = fopen("debug.txt", "a");
+    FILE *fp = fopen(filename, "a");
     if (fp == NULL) {
         perror("Failed to open file");
         return;

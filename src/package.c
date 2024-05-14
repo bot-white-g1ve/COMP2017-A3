@@ -1,4 +1,5 @@
 #include <net/package.h>
+#include <string.h>
 
 struct btide_packet create_small_packet(uint16_t msg_code){
     /**
