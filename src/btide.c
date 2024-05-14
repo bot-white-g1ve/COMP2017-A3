@@ -137,9 +137,26 @@ int process_command(char* command){
             d_error("process_command", "No second token");
             return 0;
         } if (!is_peer_exist(token)){
-
+            printf("Unknown peer,not connected\n")
+            return 1;
         }
+
+        char* ip = strtok(token, ":");
+        char* port_str = strtok(NULL, ":");
+        if (ip == NULL || port_str == NULL) {
+            printf("Missing address and port argument\n");
+            return 1;
+        }
+
+        printf("Disconnected from peer");
+        return 1;
     }
 
-    return 1;
+    else if (strcmp(token, "PEERS") == 0){
+        printf("Connected to:\n\n")
+        print_peer_list();
+        return 1;
+    }
+
+    return 0;
 }
