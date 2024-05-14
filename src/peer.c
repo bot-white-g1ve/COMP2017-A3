@@ -15,7 +15,7 @@
 #include <sys/select.h>
 
 volatile int quit_signal = 0;
-char peer_list[2048][PEER_STR_LEN];
+char peer_list[2048][PEER_STR_LEN] = {0};
 int peer_count = 0;
 pthread_mutex_t peer_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -207,6 +207,7 @@ void print_peer_list() {
         return;
     }
 
+    printf("Connected to:\n\n");
     for (int i = 0; i < peer_count; i++) {
         printf("%d. %s\n", i + 1, peer_list[i]);
     }
@@ -214,12 +215,17 @@ void print_peer_list() {
     pthread_mutex_unlock(&peer_list_mutex);
 }
 
-void remove_peer(const char* peer) {
+void remove_peer(const char* ip, const char* port_str) {
+    char peer[PEER_STR_LEN];
+    snprintf(peer, PEER_STR_LEN, "%s:%s", ip, port_str);
+    d_print("remove_peer", "the peer is %s", peer);
+
     pthread_mutex_lock(&peer_list_mutex);
 
     int found_index = -1;
     for (int i = 0; i < peer_count; i++) {
         if (strcmp(peer_list[i], peer) == 0) {
+            d_print("remove_peer", "find target in index %d", i);
             found_index = i;
             break;
         }

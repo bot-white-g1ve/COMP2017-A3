@@ -137,6 +137,7 @@ int process_command(char* command){
 
     else if (strcmp(token, "DISCONNECT") == 0){
         token = strtok(NULL, " ");
+        d_print("process_command", "the token is %s", token);
         if (token == NULL) {
             d_error("process_command", "No second token");
             return 0;
@@ -152,13 +153,12 @@ int process_command(char* command){
             return 1;
         }
 
-        remove_peer(token);
+        remove_peer(ip, port_str);
         printf("Disconnected from peer\n");
         return 1;
     }
 
     else if (strcmp(token, "PEERS") == 0){
-        printf("Connected to:\n\n");
         print_peer_list();
         return 1;
     }
