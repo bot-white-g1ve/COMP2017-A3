@@ -149,7 +149,7 @@ int process_command(char* command){
             return 1;
         }
 
-        printf("Disconnected from peer");
+        printf("Disconnected from peer\n");
         return 1;
     }
 
