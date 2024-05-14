@@ -25,7 +25,7 @@ pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tr
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./
 btide: src/btide.c src/debug/debug.c src/config.c src/peer.c src/package.c
-	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Alter your build for p1 tests to build unit-tests for your
 # merkle tree, use pkgchk to help with what to test for
