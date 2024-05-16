@@ -5,6 +5,7 @@
 #include <utils/linked_list.h>
 #include <config.h>
 #include <utils/str.h>
+#include <bpkg.h>
 
 // linked list head
 PackageNode* head = NULL;
@@ -35,8 +36,9 @@ void print_packages(char* directory) {
         int i = 1;
         while (current != NULL) {
             char* file_path = concat_file_path(directory, current->package->filename);
+            char* completed = bpkg_complete_check(current->package, directory);
 
-            printf("%d. %.32s, %s : INCOMPLETE\n", i, current->package->ident, file_path);
+            printf("%d. %.32s, %s : %s\n", i, current->package->ident, file_path, completed);
             i++;
 
             current = current->next;

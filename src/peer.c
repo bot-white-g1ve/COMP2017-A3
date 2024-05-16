@@ -239,7 +239,7 @@ void *client_thread(void* arg) {
     // d_print("Client thread", "Message sent: %s", hello);
 
     // Read server's response
-    int valread = read(sock, &buffer, PACKET_LEN);
+    read(sock, &buffer, PACKET_LEN);
     d_print("client thread", "Server response package with msg_code: %hu", buffer.msg_code);
 
     if (0x02 == buffer.msg_code){

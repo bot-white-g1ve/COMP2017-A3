@@ -6,7 +6,7 @@
 #include <peer.h>
 #include <pthread.h>
 #include <string.h>
-#include <chk/pkgchk.h>
+#include <bpkg.h>
 #include <utils/linked_list.h>
 #include <utils/str.h>
 

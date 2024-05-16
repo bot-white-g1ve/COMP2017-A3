@@ -969,62 +969,49 @@ void bpkg_obj_destroy(struct bpkg_obj* obj) {
 
 
 // The functions below are for part2 specially
-// char* bpkg_get_completed_chunks(struct bpkg_obj* bpkg, char* directory) { 
-//     char file_path[PATH_MAX_LEN + 32];
-//     snprintf(file_path, sizeof(file_path), "%s%s", directory, current->package->filename);
 
-//     check_chunks_completed(bpkg->merkle_tree->root, file_path, bpkg->nchunks);
+/**
+ * Function to check if all chunks are complete
+*/
+const char* bpkg_complete_check(struct bpkg_obj* bpkg, char* directory) { 
+    char* file_path = concat_file_path(directory, bpkg->filename);
 
-//     struct bpkg_query qry = { 0 };
-    
-//     if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
-//         d_print("bpkg_get_completed_hashes", "Invalid Merkle tree data.\n");
-//         return qry;  // Return empty query result if input is invalid
-//     }
+    check_chunks_completed(bpkg->merkle_tree->root, file_path, bpkg->nchunks);
 
-//     // Initialize queue for BFS
-//     struct Queue* queue = createQueue();
-//     enqueue(queue, bpkg->merkle_tree->root);
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("bpkg_get_completed_chunks", "Invalid Merkle tree data.\n");
+        return "INCOMPLETE";
+    }
 
-//     // Temporary storage for collecting hashes
-//     qry.hashes = malloc((bpkg->nchunks) * sizeof(char*));
-//     if (qry.hashes == NULL) {
-//         d_print("bpkg_get_completed_hashes", "Failed to allocate memory for hash array.");
-//         exit(EXIT_FAILURE);
-//     }
-//     size_t count = 0;
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
 
-//     while (!is_queue_empty(queue)) {
-//         struct merkle_tree_node* current = dequeue(queue);
+    bool all_chunks_complete = true;
 
-//         if (current->is_leaf == 1){
-//             d_print("bpkg_get_completed_hashes", "The expected hash for node in current loop is %.*s", SHA256_HEXLEN, current->expected_hash);
-//             d_print("bpkg_get_completed_hashes", "The computed hash for node in current loop is %.*s", SHA256_HEXLEN, current->computed_hash);
-//         } 
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
 
-//         if (current->is_leaf == 1 && strncmp(current->computed_hash, current->expected_hash, SHA256_HEXLEN) == 0) {
-//             // Allocate memory for each hash and copy it
-//             qry.hashes[count] = malloc(SHA256_HEXLEN + 10);  // SHA256_HEX_LEN is a defined constant for hash size
-//             if (qry.hashes[count] == NULL) {
-//                 d_print("bpkg_get_completed_hashes", "Failed to allocate memory for a hash.");
-//                 exit(EXIT_FAILURE);
-//             }
-       
-//             //d_print("bpkg_get_completed_chunks", "The expected hash (in leaf) in current loop is %s", current->expected_hash);
-//             strncpy(qry.hashes[count], current->expected_hash, SHA256_HEXLEN);
-//             count++;
-//         }
+        if (current->is_leaf == 1) {
+            d_print("bpkg_get_completed_chunks", "The expected hash for node in current loop is %.*s", SHA256_HEXLEN, current->expected_hash);
+            d_print("bpkg_get_completed_chunks", "The computed hash for node in current loop is %.*s", SHA256_HEXLEN, current->computed_hash);
+            
+            if (strncmp(current->computed_hash, current->expected_hash, SHA256_HEXLEN) != 0) {
+                all_chunks_complete = false;
+                break;
+            }
+        }
 
-//         // Enqueue child nodes
-//         if (current->left != NULL) {
-//             enqueue(queue, current->left);
-//         }
-//         if (current->right != NULL) {
-//             enqueue(queue, current->right);
-//         }
-//     }
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
 
-//     qry.len = count;  // Set the length of the hash array
-//     free_queue(queue);  // Clean up the queue
-//     return qry;
-// }
+    free_queue(queue);  // Clean up the queue
+
+    return all_chunks_complete ? "COMPLETED" : "INCOMPLETE";
+}

@@ -1,7 +1,7 @@
 #ifndef LINKED_LIST_H
 #define LINKED_LIST_H
 
-#include <chk/pkgchk.h>
+#include <bpkg.h>
 
 // The linked list for storing the package
 typedef struct PackageNode {
