@@ -19,9 +19,17 @@ void add_package(struct bpkg_obj* package) {
 
     pthread_mutex_lock(&package_list_mutex);
 
-    // Add to the head of the list
-    new_node->next = head;
-    head = new_node;
+    // If the list is empty, set the new node as the head
+    if (head == NULL) {
+        head = new_node;
+    } else {
+        // Otherwise, find the last node and add the new node
+        PackageNode* current = head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = new_node;
+    }
 
     pthread_mutex_unlock(&package_list_mutex);
 }
