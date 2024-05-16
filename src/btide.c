@@ -203,7 +203,7 @@ int process_command(char* command){
 
         return 1;
     } else if (strcmp(token, "PACKAGES") == 0) {
-        print_packages();
+        print_packages(directory);
         return 1;
     }
 

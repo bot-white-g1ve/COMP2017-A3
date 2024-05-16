@@ -3,6 +3,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <utils/linked_list.h>
+#include <config.h>
 
 // linked list head
 PackageNode* head = NULL;
@@ -23,7 +24,7 @@ void add_package(struct bpkg_obj* package) {
     pthread_mutex_unlock(&package_list_mutex);
 }
 
-void print_packages() {
+void print_packages(char* directory) {
     pthread_mutex_lock(&package_list_mutex);
 
     PackageNode* current = head;
@@ -32,7 +33,10 @@ void print_packages() {
     } else {
         int i = 1;
         while (current != NULL) {
-            printf("%d. %.32s, %s : INCOMPLETE\n", i, current->package->ident, current->package->filename);
+            char file_path[PATH_MAX_LEN + 32];
+            snprintf(file_path, sizeof(file_path), "%s%s", directory, current->package->filename);
+
+            printf("%d. %.32s, %s : INCOMPLETE\n", i, current->package->ident, file_path);
             i++;
 
             current = current->next;

@@ -10,7 +10,7 @@ typedef struct PackageNode {
 } PackageNode;
 
 extern void add_package(struct bpkg_obj* package);
-extern void print_packages();
+extern void print_packages(char* directory);
 extern void free_packages();
 
 #endif
