@@ -32,7 +32,7 @@ void print_packages() {
     } else {
         int i = 1;
         while (current != NULL) {
-            printf("%d. %.32s, %s : INCOMPLETE", i, current->package->ident, current->package->filename);
+            printf("%d. %.32s, %s : INCOMPLETE\n", i, current->package->ident, current->package->filename);
             i++;
 
             current = current->next;
