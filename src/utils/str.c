@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <utils/str.h>
+#include <config.h>
 
 void delete_newline_in_the_end(char* str){
     /** 
@@ -86,6 +87,20 @@ struct split_on_comma_return split_on_comma(const char* str){
     result.size = strtoul(token, NULL, 10); // transform to uint32_t
 
     return result;
+}
+
+// Function to create and return a concatenated file path
+char* concat_file_path(const char* directory, const char* filename) {
+    static char file_path[PATH_MAX_LEN + 32]; // Adjust the size as needed
+
+    // Check if the directory ends with '/'
+    if (directory[strlen(directory) - 1] == '/') {
+        snprintf(file_path, sizeof(file_path), "%s%s", directory, filename);
+    } else {
+        snprintf(file_path, sizeof(file_path), "%s/%s", directory, filename);
+    }
+
+    return file_path;
 }
 
 void delete_edd_null(char* str, size_t size){

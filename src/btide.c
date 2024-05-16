@@ -8,6 +8,7 @@
 #include <string.h>
 #include <chk/pkgchk.h>
 #include <utils/linked_list.h>
+#include <utils/str.h>
 
 //
 // PART 2
@@ -189,8 +190,7 @@ int process_command(char* command){
             return 1;
         }
 
-        char path[PATH_MAX_LEN + 32];
-        snprintf(path, sizeof(path), "%s/%s", directory, token);
+        char* path = concat_file_path(directory, token);
 
         struct bpkg_obj* package = bpkg_load(path);
 

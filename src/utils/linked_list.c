@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <utils/linked_list.h>
 #include <config.h>
+#include <utils/str.h>
 
 // linked list head
 PackageNode* head = NULL;
@@ -33,8 +34,7 @@ void print_packages(char* directory) {
     } else {
         int i = 1;
         while (current != NULL) {
-            char file_path[PATH_MAX_LEN + 32];
-            snprintf(file_path, sizeof(file_path), "%s%s", directory, current->package->filename);
+            char* file_path = concat_file_path(directory, current->package->filename);
 
             printf("%d. %.32s, %s : INCOMPLETE\n", i, current->package->ident, file_path);
             i++;

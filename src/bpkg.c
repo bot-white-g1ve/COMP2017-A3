@@ -15,6 +15,7 @@
 #include <utils/queue.h>
 #include <crypt/sha256.h>
 #include <stdbool.h>
+#include <config.h>
 
 #define SHA256_HEXLEN (64)
 
@@ -968,9 +969,11 @@ void bpkg_obj_destroy(struct bpkg_obj* obj) {
 
 
 // The functions below are for part2 specially
-// char* bpkg_get_completed_chunks(struct bpkg_obj* bpkg) { 
+// char* bpkg_get_completed_chunks(struct bpkg_obj* bpkg, char* directory) { 
+//     char file_path[PATH_MAX_LEN + 32];
+//     snprintf(file_path, sizeof(file_path), "%s%s", directory, current->package->filename);
 
-//     check_chunks_completed(bpkg->merkle_tree->root, bpkg->filename, bpkg->nchunks);
+//     check_chunks_completed(bpkg->merkle_tree->root, file_path, bpkg->nchunks);
 
 //     struct bpkg_query qry = { 0 };
     
