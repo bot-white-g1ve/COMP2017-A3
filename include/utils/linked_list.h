@@ -1,0 +1,16 @@
+#ifndef LINKED_LIST_H
+#define LINKED_LIST_H
+
+#include <chk/pkgchk.h>
+
+// The linked list for storing the package
+typedef struct PackageNode {
+    struct bpkg_obj* package;
+    struct PackageNode* next;
+} PackageNode;
+
+extern void add_package(struct bpkg_obj* package);
+extern void print_packages();
+extern void free_packages();
+
+#endif

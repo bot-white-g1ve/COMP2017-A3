@@ -15,18 +15,79 @@
 #include <sys/select.h>
 
 volatile int quit_signal = 0;
-char peer_list[2048][PEER_STR_LEN] = {0};
+Peer peer_list[MAX_PEERS] = {0};
 int peer_count = 0;
 pthread_mutex_t peer_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void add_peer(const char* ip, int port);
+void add_peer(const char* ip, int port, int sock);
+
+void* tiny_server_thread(void* arg){
+    int new_socket = *(int*)arg;
+    free(arg); // Free the dynamically allocated memory
+
+    struct sockaddr_in client_address;
+    socklen_t client_addrlen = sizeof(client_address);
+    struct btide_packet buffer;
+
+    if (getpeername(new_socket, (struct sockaddr *)&client_address, &client_addrlen) < 0) {
+        d_error("tiny_server_thread", "Getpeername failed");
+        close(new_socket);
+        pthread_exit(NULL);
+    }
+
+    char client_ip[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &client_address.sin_addr, client_ip, INET_ADDRSTRLEN);
+    int client_port = ntohs(client_address.sin_port);
+
+    fd_set readfds;
+    while (!quit_signal) {
+        FD_ZERO(&readfds);
+        FD_SET(new_socket, &readfds);
+
+        struct timeval timeout;
+        timeout.tv_sec = 1;  // Timeout of 1 second
+        timeout.tv_usec = 0;
+
+        int activity = select(new_socket + 1, &readfds, NULL, NULL, &timeout);
+        if (activity < 0 && errno != EINTR) {
+            d_error("tiny_server_thread", "select error");
+            break;
+        }
+
+        if (activity > 0 && FD_ISSET(new_socket, &readfds)) {
+            int valread = read(new_socket, &buffer, PACKET_LEN);
+            if (valread == 0) {
+                d_print("tiny_server_thread", "Read zero");
+                continue;
+            } else if (valread < 0) {
+                d_error("tiny_server_thread", "Read error");
+                break;
+            }
+
+            d_print("tiny_server_thread", "Received packet with msg_code: %hu", buffer.msg_code);
+
+            // Process the packet
+            if (0x03 == buffer.msg_code) {
+                remove_peer(client_ip, client_port);
+                break;
+            } else if (0xFF == buffer.msg_code) {
+                struct btide_packet pong_packet = create_small_packet(0x00);
+                send(new_socket, &pong_packet, sizeof(struct btide_packet), 0);
+            }
+        }
+    }
+
+    close(new_socket);
+    d_print("tiny_server_thread", "Client handler quits");
+    pthread_exit(NULL);
+}
 
 void *server_thread(void* arg){
     /**
      * Keep listening on port
     */
     int port = *(int*)arg;
-    int server_fd, new_socket;
+    int server_fd;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     struct btide_packet buffer;
@@ -78,10 +139,26 @@ void *server_thread(void* arg){
 
         if (activity > 0 && FD_ISSET(server_fd, &readfds)) {
             // Accept
-            if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+            int* new_socket = malloc(sizeof(int)); // Dynamically allocate memory for new socket
+            if ((*new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
                 d_error("server_thread","Accept failed");
+                free(new_socket);
                 continue; // TODO: If error
             }
+
+            // Get client address
+            struct sockaddr_in client_address;
+            socklen_t client_addrlen = sizeof(client_address);
+            if (getpeername(*new_socket, (struct sockaddr *)&client_address, &client_addrlen) < 0) {
+                d_error("server_thread", "Getpeername failed");
+                close(*new_socket);
+                free(new_socket);
+                continue;
+            }
+
+            char client_ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &client_address.sin_addr, client_ip, INET_ADDRSTRLEN);
+            int client_port = ntohs(client_address.sin_port);
 
             // Read
             // memset(buffer, 0, PACKET_LEN);
@@ -89,15 +166,26 @@ void *server_thread(void* arg){
             // d_print("server_thread", "Received %s", buffer);
 
             struct btide_packet ACP_packet = create_small_packet(0x02);
-            send(new_socket, &ACP_packet, sizeof(struct btide_packet), 0);
+            send(*new_socket, &ACP_packet, sizeof(struct btide_packet), 0);
             d_print("server_thread", "Send packet with msg_code %hu", ACP_packet.msg_code);
 
-            int valread = read(new_socket, &buffer, PACKET_LEN);
+            int valread = read(*new_socket, &buffer, PACKET_LEN);
             d_print("server_thread", "Valread read is %d", valread);
             d_print("server_thread", "Client response package with msg_code: %hu", buffer.msg_code);
 
-            // Close current socket
-            close(new_socket);
+            if (0x0c == buffer.msg_code){
+                add_peer(client_ip, client_port, *new_socket);
+                pthread_t tiny_thread;
+                if (pthread_create(&tiny_thread, NULL, tiny_server_thread, new_socket) != 0) {
+                    d_error("server_thread", "Failed to create thread");
+                    close(*new_socket);
+                    free(new_socket);
+                }
+                pthread_detach(tiny_thread); // Detach the thread so that it cleans up after itself
+            } else {
+                close(*new_socket);
+                free(new_socket);
+            }
         }
     }
 
@@ -156,40 +244,84 @@ void *client_thread(void* arg) {
 
     if (0x02 == buffer.msg_code){
         //Add ip:port to peer_list
-        add_peer(server_ip, port);
+        add_peer(server_ip, port, sock);
 
         struct btide_packet ACK_packet = create_small_packet(0x0c);
         send(sock, &ACK_packet, sizeof(struct btide_packet), 0);
         d_print("client_thread", "Send packet with msg_code %hu", ACK_packet.msg_code);
 
         printf("Connection established with peer\n");
+    } else {
+        close(sock);
     }
 
-    // Close the socket
-    close(sock);
     free(((char**)arg)[0]);
     free(((char**)arg)[1]);
     free(arg);
     pthread_exit(NULL);
 }
 
-void add_peer(const char* ip, int port) {
+void client_socket_disconnect(int sock) {
+    struct btide_packet DSN_packet = create_small_packet(0x03);
+    if (send(sock, &DSN_packet, sizeof(struct btide_packet), 0) < 0) {
+        d_error("client_socket_disconnect", "Send error");
+    } else {
+        d_print("client_socket_disconnect", "Send packet with msg_code %hu", DSN_packet.msg_code);
+    }
+
+    // Close the socket
+    close(sock);
+}
+
+void ping_peers() {
     pthread_mutex_lock(&peer_list_mutex);
 
-    snprintf(peer_list[peer_count], PEER_STR_LEN, "%s:%d", ip, port);
-    peer_count++;
-    d_print("add_peer", "Added peer: %s:%d", ip, port);
+    for (int i = 0; i < peer_count; i++) {
+        int sock = peer_list[i].socket;
+        struct btide_packet ping_packet = create_small_packet(0xFF);
+
+        if (send(sock, &ping_packet, sizeof(struct btide_packet), 0) < 0) {
+            d_error("ping_peers", "Send error to peer: %s", peer_list[i].address);
+            continue;
+        } else {
+            d_print("ping_peers", "Sent ping packet to peer: %s", peer_list[i].address);
+        }
+
+        struct btide_packet response_packet;
+        int valread = read(sock, &response_packet, PACKET_LEN);
+
+        if (valread > 0 && response_packet.msg_code == 0x00) {
+            d_print("ping_peers", "Received response from peer: %s", peer_list[i].address);
+        } else {
+            d_error("ping_peers", "No valid response from peer: %s", peer_list[i].address);
+        }
+    }
 
     pthread_mutex_unlock(&peer_list_mutex);
 }
 
-int is_peer_exist(const char* peer) {
+void add_peer(const char* ip, int port, int sock) {
+    pthread_mutex_lock(&peer_list_mutex);
 
+    if (peer_count < MAX_PEERS) {
+        snprintf(peer_list[peer_count].address, PEER_STR_LEN, "%s:%d", ip, port);
+        peer_list[peer_count].socket = sock;
+        peer_count++;
+        d_print("add_peer", "Added peer: %s:%d", ip, port);
+    } else {
+        d_error("add_peer", "Peer list is full");
+    }
+
+    pthread_mutex_unlock(&peer_list_mutex);
+}
+
+
+int is_peer_exist(const char* peer) {
     pthread_mutex_lock(&peer_list_mutex);
 
     for (int i = 0; i < peer_count; i++) {
-        if (strcmp(peer_list[i], peer) == 0) {
-            pthread_mutex_unlock(&peer_list_mutex); 
+        if (strcmp(peer_list[i].address, peer) == 0) {
+            pthread_mutex_unlock(&peer_list_mutex);
             return 1;  // Exist
         }
     }
@@ -198,33 +330,33 @@ int is_peer_exist(const char* peer) {
     return 0;  // Not exist
 }
 
+
 void print_peer_list() {
     pthread_mutex_lock(&peer_list_mutex);
 
-    if (peer_count == 0){
+    if (peer_count == 0) {
         printf("Not connected to any peers\n");
-        pthread_mutex_unlock(&peer_list_mutex);
-        return;
-    }
-
-    printf("Connected to:\n\n");
-    for (int i = 0; i < peer_count; i++) {
-        printf("%d. %s\n", i + 1, peer_list[i]);
+    } else {
+        printf("Connected to:\n\n");
+        for (int i = 0; i < peer_count; i++) {
+            printf("%d. %s\n", i + 1, peer_list[i].address);
+        }
     }
 
     pthread_mutex_unlock(&peer_list_mutex);
 }
 
-void remove_peer(const char* ip, const char* port_str) {
+
+void remove_peer(const char* ip, int port) {
     char peer[PEER_STR_LEN];
-    snprintf(peer, PEER_STR_LEN, "%s:%s", ip, port_str);
+    snprintf(peer, PEER_STR_LEN, "%s:%d", ip, port);
     d_print("remove_peer", "the peer is %s", peer);
 
     pthread_mutex_lock(&peer_list_mutex);
 
     int found_index = -1;
     for (int i = 0; i < peer_count; i++) {
-        if (strcmp(peer_list[i], peer) == 0) {
+        if (strcmp(peer_list[i].address, peer) == 0) {
             d_print("remove_peer", "find target in index %d", i);
             found_index = i;
             break;
@@ -232,9 +364,11 @@ void remove_peer(const char* ip, const char* port_str) {
     }
 
     if (found_index != -1) {
+        // Close the socket before removing the peer
+        // close(peer_list[found_index].socket);
         // Move elements forward
         for (int i = found_index; i < peer_count - 1; i++) {
-            strcpy(peer_list[i], peer_list[i + 1]);
+            peer_list[i] = peer_list[i + 1];
         }
         peer_count--;
         d_print("remove_peer", "Removed peer: %s", peer);
@@ -243,5 +377,26 @@ void remove_peer(const char* ip, const char* port_str) {
     }
 
     pthread_mutex_unlock(&peer_list_mutex);
+}
+
+int get_peer(const char* ip, int port) {
+    char peer[PEER_STR_LEN];
+    snprintf(peer, PEER_STR_LEN, "%s:%d", ip, port);
+    d_print("get_peer", "Looking for peer: %s", peer);
+
+    pthread_mutex_lock(&peer_list_mutex);
+
+    for (int i = 0; i < peer_count; i++) {
+        if (strcmp(peer_list[i].address, peer) == 0) {
+            int sock = peer_list[i].socket;
+            pthread_mutex_unlock(&peer_list_mutex);
+            d_print("get_peer", "Found peer: %s with socket %d", peer, sock);
+            return sock;
+        }
+    }
+
+    pthread_mutex_unlock(&peer_list_mutex);
+    d_print("get_peer", "Peer not found: %s", peer);
+    return -1;  // Not found
 }
 

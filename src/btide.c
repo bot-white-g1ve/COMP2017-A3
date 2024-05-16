@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <chk/pkgchk.h>
+#include <utils/linked_list.h>
 
 //
 // PART 2
@@ -27,6 +28,8 @@ int main(int argc, char** argv) {
         d_error("main", "Failed to load configuration.");
         exit(-1);
     }
+
+    d_init(config->port);
     
     d_print("main", "Config load successfully");
     d_print("main", "Directory: %s", config->directory);
@@ -76,6 +79,7 @@ void* cli_thread(void* arg){
         if (return_code == 0){
             printf("Invalid Input.\n");
         } else if (return_code == -1){
+            free_packages();
             break;
         }
     }
@@ -153,13 +157,28 @@ int process_command(char* command){
             return 1;
         }
 
-        remove_peer(ip, port_str);
-        printf("Disconnected from peer\n");
+        int port = atoi(port_str);
+
+        int sock = get_peer(ip, port);
+
+        if (sock != -1) {
+            // Send DSN and close sock
+            client_socket_disconnect(sock);
+
+            // remove from peer_list
+            remove_peer(ip, port);
+
+            printf("Disconnected from peer\n");
+        } else {
+            printf("Peer not found: %s:%d\n", ip, port);
+        }
+
         return 1;
     }
 
     else if (strcmp(token, "PEERS") == 0){
         print_peer_list();
+        ping_peers();
         return 1;
     }
 
@@ -169,6 +188,23 @@ int process_command(char* command){
             printf("Missing file argument\n");
             return 1;
         }
+
+        char path[PATH_MAX_LEN + 32];
+        snprintf(path, sizeof(path), "%s/%s", directory, token);
+
+        struct bpkg_obj* package = bpkg_load(path);
+
+        if (NULL != package){
+            d_print("process_command.ADDPACKAGE", "package's filename is %s", package->filename);
+            add_package(package);
+        } else {
+            d_error("process_command.ADDPACKAGE", "Failed to load package");
+        }
+
+        return 1;
+    } else if (strcmp(token, "PACKAGES") == 0) {
+        print_packages();
+        return 1;
     }
 
     return 0;
