@@ -12,5 +12,6 @@ typedef struct PackageNode {
 extern void add_package(struct bpkg_obj* package);
 extern void print_packages(char* directory);
 extern void free_packages();
+extern void remove_package(const char* ident);
 
 #endif

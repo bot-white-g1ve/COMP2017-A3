@@ -6,6 +6,7 @@
 #include <config.h>
 #include <utils/str.h>
 #include <bpkg.h>
+#include <stdbool.h>
 
 // linked list head
 PackageNode* head = NULL;
@@ -54,6 +55,39 @@ void print_packages(char* directory) {
     }
 
     pthread_mutex_unlock(&package_list_mutex);
+}
+
+void remove_package(const char* ident) {
+    bool package_found = false;
+
+    pthread_mutex_lock(&package_list_mutex);
+
+    PackageNode* current = head;
+    PackageNode* prev = NULL;
+
+    while (current != NULL) {
+        if (strncmp(current->package->ident, ident, 20) == 0) {
+            if (prev == NULL) { // Node to be removed is the head
+                head = current->next;
+            } else {
+                prev->next = current->next;
+            }
+            bpkg_obj_destroy(current->package);
+            free(current);
+            package_found = true;
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    pthread_mutex_unlock(&package_list_mutex);
+
+    if (package_found == true){
+        printf("Package has been removed\n");
+    } else if (package_found == false){
+        printf("Identifier provided does not match managed packages\n");
+    }
 }
 
 void free_packages() {

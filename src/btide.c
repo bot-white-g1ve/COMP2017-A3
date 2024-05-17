@@ -202,7 +202,21 @@ int process_command(char* command){
         }
 
         return 1;
-    } else if (strcmp(token, "PACKAGES") == 0) {
+    } 
+
+    else if (strcmp(token, "REMPACKAGE") == 0){
+        token = strtok(NULL, " ");
+        if (token == NULL) {
+            printf("Missing identifier argument, please specify whole 1024 character or at least 20 characters.\n");
+            return 1;
+        }
+
+        remove_package(token);
+
+        return 1;
+    }
+    
+    else if (strcmp(token, "PACKAGES") == 0) {
         print_packages(directory);
         return 1;
     }
