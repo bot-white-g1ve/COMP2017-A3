@@ -142,7 +142,7 @@ struct merkle_tree_node* construct_non_leaf_nodes(FILE* bpkg_file, uint32_t nhas
         fgets(file_line, sizeof(file_line), bpkg_file);
         delete_whitespace_in_the_front(file_line);
         delete_newline_in_the_end(file_line);
-        d_print("construct_non_leaf_nodes", "read from bpkg file: %s", file_line);
+        //d_print("construct_non_leaf_nodes", "read from bpkg file: %s", file_line);
 
         // Get the parent
         struct merkle_tree_node* parent = (struct merkle_tree_node*)queue_get(queue);
@@ -191,7 +191,7 @@ struct merkle_tree_node* construct_leaf_nodes(struct merkle_tree_node* root, FIL
         if (fgets(file_line, sizeof(file_line), bpkg_file) == NULL) break;
         delete_whitespace_in_the_front(file_line);
         delete_newline_in_the_end(file_line);
-        d_print("construct_leaf_nodes", "The file line read in current loop is %s", file_line);
+        //d_print("construct_leaf_nodes", "The file line read in current loop is %s", file_line);
         struct split_on_comma_return splited_file_line = split_on_comma(file_line);
 
         struct merkle_tree_node* leaf = malloc(sizeof(struct merkle_tree_node));
@@ -252,18 +252,20 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
         exit(EXIT_FAILURE);
     }
 
-    if (access(bpkg->filename, F_OK) == 0){
+    char* file_path = concat_file_path(directory, bpkg->filename);
+
+    if (access(file_path, F_OK) == 0){
         // File exists
         strcpy(qry.hashes[0], "File Exists");
         d_print("bpkg_file_check", "The file exists");
         qry.len = 1;
-        if (stat(bpkg->filename, &st) == 0){
+        if (stat(file_path, &st) == 0){
             off_t actual_size = st.st_size;
             if (actual_size == bpkg->size){
                 d_print("bpkg_file_check", "The size of the existing file is correct");
                 ;
             } else if (actual_size != bpkg->size){
-                fd = open(bpkg->filename, O_RDWR);
+                fd = open(file_path, O_RDWR);
                 if (fd == -1){
                     d_print("bpkg_file_check", "File exists. Error opening file");
                     exit(EXIT_FAILURE);
@@ -284,7 +286,7 @@ struct bpkg_query bpkg_file_check(struct bpkg_obj* bpkg){
         }
     } else {
         // File does not exist, create it
-        fd = open(bpkg->filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        fd = open(file_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
         if (fd == -1) {
             d_print("bpkg_file_check", "Error creating file");
             exit(EXIT_FAILURE);
@@ -1066,6 +1068,7 @@ int write_data_to_file(const char* file_path, uint32_t offset, const char* data,
     }
 
     ssize_t bytes_written = write(fd, data, data_len);
+    d_print("write data to file", "The bytes written is %d", bytes_written);
     if (bytes_written < 0) {
         perror("Write file failed");
         close(fd);
@@ -1075,3 +1078,5 @@ int write_data_to_file(const char* file_path, uint32_t offset, const char* data,
     close(fd);
     return 0;
 }
+
+

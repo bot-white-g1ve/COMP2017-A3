@@ -225,27 +225,17 @@ int process_command(char* command){
     else if (strcmp(token, "FETCH") == 0) {
         token = strtok(NULL, " ");
         if (token == NULL) {
-            d_print("process_command.FETCH", "Missing <ip:port> argument\n");
-            printf("Missing arguments from command");
+            d_print("process_command.FETCH", "Missing <ip:port> argument");
+            printf("Missing arguments from command\n");
             return 1;
         }
         char* ip_port = strdup(token);
 
-        // Split <ip:port> into ip and port
-        char* ip = strtok(ip_port, ":");
-        char* port_str = strtok(NULL, ":");
-        if (ip == NULL || port_str == NULL) {
-            d_print("process_command.FETCH", "Invalid <ip:port> argument\n");
-            printf("Missing arguments from command");
-            free(ip_port);
-            return 1;
-        }
-
         // Get <identifier>
         token = strtok(NULL, " ");
         if (token == NULL) {
-            d_print("process_command.FETCH", "Missing <identifier> argument\n");
-            printf("Missing arguments from command");
+            d_print("process_command.FETCH", "Missing <identifier> argument");
+            printf("Missing arguments from command\n");
             free(ip_port);
             return 1;
         }
@@ -254,12 +244,23 @@ int process_command(char* command){
         // Get <hash>
         token = strtok(NULL, " ");
         if (token == NULL) {
-            d_print("process_command.FETCH", "Missing <hash> argument\n");
+            d_print("process_command.FETCH", "Missing <hash> argument");
+            printf("Missing arguments from command\n");
             free(ip_port);
             free(identifier);
             return 1;
         }
         char* hash = strdup(token);
+
+        // Split <ip:port> into ip and port
+        char* ip = strtok(ip_port, ":");
+        char* port_str = strtok(NULL, ":");
+        if (ip == NULL || port_str == NULL) {
+            d_print("process_command.FETCH", "Invalid <ip:port> argument");
+            printf("Missing arguments from command\n");
+            free(ip_port);
+            return 1;
+        }
 
         int port = atoi(port_str);
         
@@ -271,7 +272,7 @@ int process_command(char* command){
             if (NULL != target_package){
                 struct merkle_tree_node* target_chunk = get_chunk(target_package->package, hash);
                 if (NULL != target_chunk){
-                    
+                    client_socket_fetch(sock, target_chunk, target_package->package->ident, hash);
                 } else {
                     printf("Unable to request chunk, chunk hash does not belong to package");
                 }

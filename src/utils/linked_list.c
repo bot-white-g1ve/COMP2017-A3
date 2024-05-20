@@ -7,6 +7,7 @@
 #include <utils/str.h>
 #include <bpkg.h>
 #include <stdbool.h>
+#include <debug/debug.h>
 
 // linked list head
 PackageNode* head = NULL;
@@ -19,6 +20,7 @@ void add_package(struct bpkg_obj* package) {
     new_node->next = NULL;
 
     pthread_mutex_lock(&package_list_mutex);
+    d_print("add_packege", "mutex_lock obtained");
 
     // If the list is empty, set the new node as the head
     if (head == NULL) {
@@ -33,10 +35,12 @@ void add_package(struct bpkg_obj* package) {
     }
 
     pthread_mutex_unlock(&package_list_mutex);
+    d_print("add_packege", "mutex_lock unlocked");
 }
 
 void print_packages(char* directory) {
     pthread_mutex_lock(&package_list_mutex);
+    d_print("print_packeges", "mutex_lock obtained");
 
     PackageNode* current = head;
     if (current == NULL) {
@@ -55,12 +59,14 @@ void print_packages(char* directory) {
     }
 
     pthread_mutex_unlock(&package_list_mutex);
+    d_print("print_packeges", "mutex_lock unlocked");
 }
 
 void remove_package(const char* ident) {
     bool package_found = false;
 
     pthread_mutex_lock(&package_list_mutex);
+    d_print("remove_packege", "mutex_lock obtained");
 
     PackageNode* current = head;
     PackageNode* prev = NULL;
@@ -82,6 +88,7 @@ void remove_package(const char* ident) {
     }
 
     pthread_mutex_unlock(&package_list_mutex);
+    d_print("remove_packege", "mutex_lock unlocked");
 
     if (package_found == true){
         printf("Package has been removed\n");
@@ -92,6 +99,7 @@ void remove_package(const char* ident) {
 
 void free_packages() {
     pthread_mutex_lock(&package_list_mutex);
+    d_print("free_packeges", "mutex_lock obtained");
 
     PackageNode* current = head;
     while (current != NULL) {
@@ -104,21 +112,26 @@ void free_packages() {
     head = NULL;
 
     pthread_mutex_unlock(&package_list_mutex);
+    d_print("free_packege", "mutex_lock unlocked");
 }
 
 PackageNode* get_package(const char* ident) {
+    d_print("get_package", "get_package called");
     pthread_mutex_lock(&package_list_mutex);
+    d_print("get_packege", "mutex_lock obtained");
 
     PackageNode* current = head;
 
     while (current != NULL) {
         if (strncmp(current->package->ident, ident, 20) == 0) {
+            pthread_mutex_unlock(&package_list_mutex);
             return current;
         }
         current = current->next;
     }
 
     pthread_mutex_unlock(&package_list_mutex);
+    d_print("get_packege", "mutex_lock unlocked");
 
     return NULL;
 }

@@ -78,13 +78,14 @@ struct btide_packet create_res_packet(struct bpkg_obj* bpkg, const char* chunk_h
     }
 
     close(fd);
-    free(file_path);
+    //free(file_path);
 
     memcpy(packet.pl.data, &offset, sizeof(uint32_t));
     memcpy(packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN, &data_len, sizeof(uint16_t));
     memcpy(packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN + sizeof(uint16_t), chunk_hash, HASH_LEN);
     memcpy(packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN + sizeof(uint16_t) + HASH_LEN, bpkg->ident, IDENT_LEN);
 
+    d_print("create_res_packet", "the res packet is created and returned");
     return packet;
 }
 
