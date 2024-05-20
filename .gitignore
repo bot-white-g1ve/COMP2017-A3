@@ -9,3 +9,5 @@ debug_*.txt
 btide
 .fuse_hidden000001f700000004
 gpt.txt
+pkgtest
+pkgmain

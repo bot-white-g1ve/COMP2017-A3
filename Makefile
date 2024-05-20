@@ -20,7 +20,7 @@ pkgmain: src/pkgmain.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tr
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c src/crypt/sha256.c
-	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o objs/$@
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
 # Required for Part 2 - Make sure it outputs `btide` file
 # in your directory ./

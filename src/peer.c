@@ -13,6 +13,10 @@
 #include <fcntl.h>
 #include <net/package.h>
 #include <sys/select.h>
+#include <tree/merkletree.h>
+#include <globals.h>
+#include <utils/linked_list.h>
+#include <utils/str.h>
 
 volatile int quit_signal = 0;
 Peer peer_list[MAX_PEERS] = {0};
@@ -73,6 +77,25 @@ void* tiny_server_thread(void* arg){
             } else if (0xFF == buffer.msg_code) {
                 struct btide_packet pong_packet = create_small_packet(0x00);
                 send(new_socket, &pong_packet, sizeof(struct btide_packet), 0);
+            } else if (0x06 == buffer.msg_code) { // Handle REQ packet
+                struct req_packet_data req_data = parse_req_packet(&buffer);
+                struct PackageNode* target_package = get_package(req_data.identifier);
+                if (target_package != NULL) {
+                    struct btide_packet res_packet = create_res_packet(
+                        target_package->package, 
+                        req_data.chunk_hash, 
+                        req_data.offset, 
+                        req_data.data_len, 
+                        directory
+                    );
+                    if (res_packet.error == 0) {
+                        send(new_socket, &res_packet, PACKET_LEN, 0);
+                    } else {
+                        d_error("tiny_server_thread", "Failed to create RES packet");
+                    }
+                } else {
+                    d_error("tiny_server_thread", "Package not managed");
+                }
             }
         }
     }
@@ -271,6 +294,64 @@ void client_socket_disconnect(int sock) {
 
     // Close the socket
     close(sock);
+}
+
+void client_socket_fetch(int sock, struct merkle_tree_node* target_chunk, const char* identifier, const char* hash) {
+    // Create REQ packet
+    struct btide_packet req_packet = create_req_packet(identifier, hash, target_chunk->offset_in_file, target_chunk->size_in_file);
+
+    // Send REQ packet
+    if (send(sock, &req_packet, PACKET_LEN, 0) < 0) {
+        d_error("client_socket_fetch","Send failed");
+        close(sock);
+        return;
+    }
+
+    d_print("client_socket_fetch", "REQ packet sent to peer\n");
+
+    // Receive RES packet
+    struct btide_packet res_packet;
+    ssize_t bytes_received = recv(sock, &res_packet, PACKET_LEN, 0);
+    if (bytes_received < 0) {
+        d_error("client_socket_fetch","Receive failed");
+        close(sock);
+        return;
+    } else if (bytes_received == 0) {
+        d_error("client_socket_fetch","Peer closed the connection\n");
+        close(sock);
+        return;
+    }
+
+    // Handle the received RES packet
+    if (res_packet.msg_code == 0x07) { // Assuming 0x07 is the code for RES
+        // Extract offset, data length, and data from the received packet
+        uint32_t offset;
+        uint16_t data_len;
+        memcpy(&offset, res_packet.pl.data, sizeof(uint32_t));
+        memcpy(&data_len, res_packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN, sizeof(uint16_t));
+        uint8_t* data = res_packet.pl.data + sizeof(uint32_t);
+
+        // Get the package object using the identifier
+        struct PackageNode* packageNode = get_package(identifier);
+        if (packageNode == NULL) {
+            d_error("client_socket_fetch", "Package not found\n");
+            return;
+        }
+        struct bpkg_obj* package = packageNode->package;
+        // Construct the file path
+        char* file_path = concat_file_path(directory, package->filename);
+
+        // Write the received data to the file
+        if (write_data_to_file(file_path, offset, (char*)data, data_len) < 0) {
+            d_error("client_socket_fetch", "Failed to write data to file\n");
+        } else {
+            d_print("client_socket_fetch", "Data written to file successfully\n");
+        }
+
+        free(file_path);
+    } else {
+        d_error("client_socket_fetch","Unexpected packet received\n");
+    }
 }
 
 void ping_peers() {

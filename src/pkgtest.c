@@ -81,9 +81,6 @@ void bpkg_print_hashes(struct bpkg_query* qry) {
 }
 
 void bpkg_print_bpkg(struct bpkg_obj* obj){
-	if (NULL == obj){
-		printf("The bpkg object is NULL\n");
-	}
 	printf("ident: %s\n", obj->ident);
 	printf("filename: %s\n", obj->filename);
 	printf("size: %u\n", obj->size);

@@ -2,10 +2,12 @@
 #define NETPKT_H
 
 #include <stdint.h>
+#include <bpkg.h>
 
 #define PAYLOAD_MAX (4092)
 #define IDENTIFIER_LEN (1024)
 #define HASH_LEN (64)
+#define MAX_DATA_LEN (2998)
 
 #define PKT_MSG_ACK 0x0c
 #define PKT_MSG_ACP 0x02
@@ -27,7 +29,16 @@ struct btide_packet {
     union btide_payload pl;
 };
 
+struct req_packet_data {
+    char identifier[IDENTIFIER_LEN];
+    char chunk_hash[HASH_LEN];
+    uint32_t offset;
+    uint32_t data_len;
+};
+
 extern struct btide_packet create_small_packet(uint16_t msg_code);
-extern struct btide_packet create_req_packet(const char *identifier, const char *chunk_hash, uint32_t offset, uint16_t data_len);
+extern struct btide_packet create_req_packet(const char *identifier, const char *chunk_hash, uint32_t offset, uint32_t data_len);
+extern struct btide_packet create_res_packet(struct bpkg_obj* bpkg, const char* chunk_hash, uint32_t offset, uint16_t data_len, const char* directory);
+extern struct req_packet_data parse_req_packet(struct btide_packet* packet);
 
 #endif

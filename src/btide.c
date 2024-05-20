@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <bpkg.h>
 #include <config.h>
 #include <debug/debug.h>
 #include <btide.h>
 #include <peer.h>
 #include <pthread.h>
 #include <string.h>
-#include <bpkg.h>
 #include <utils/linked_list.h>
 #include <utils/str.h>
 
@@ -196,6 +196,7 @@ int process_command(char* command){
 
         if (NULL != package){
             d_print("process_command.ADDPACKAGE", "package's filename is %s", package->filename);
+            bpkg_file_check(package);
             add_package(package);
         } else {
             d_error("process_command.ADDPACKAGE", "Failed to load package");
@@ -218,6 +219,73 @@ int process_command(char* command){
     
     else if (strcmp(token, "PACKAGES") == 0) {
         print_packages(directory);
+        return 1;
+    }
+
+    else if (strcmp(token, "FETCH") == 0) {
+        token = strtok(NULL, " ");
+        if (token == NULL) {
+            d_print("process_command.FETCH", "Missing <ip:port> argument\n");
+            printf("Missing arguments from command");
+            return 1;
+        }
+        char* ip_port = strdup(token);
+
+        // Split <ip:port> into ip and port
+        char* ip = strtok(ip_port, ":");
+        char* port_str = strtok(NULL, ":");
+        if (ip == NULL || port_str == NULL) {
+            d_print("process_command.FETCH", "Invalid <ip:port> argument\n");
+            printf("Missing arguments from command");
+            free(ip_port);
+            return 1;
+        }
+
+        // Get <identifier>
+        token = strtok(NULL, " ");
+        if (token == NULL) {
+            d_print("process_command.FETCH", "Missing <identifier> argument\n");
+            printf("Missing arguments from command");
+            free(ip_port);
+            return 1;
+        }
+        char* identifier = strdup(token);
+
+        // Get <hash>
+        token = strtok(NULL, " ");
+        if (token == NULL) {
+            d_print("process_command.FETCH", "Missing <hash> argument\n");
+            free(ip_port);
+            free(identifier);
+            return 1;
+        }
+        char* hash = strdup(token);
+
+        int port = atoi(port_str);
+        
+        int sock = get_peer(ip, port);
+
+        if (sock != -1) {
+            PackageNode* target_package = get_package(identifier);
+
+            if (NULL != target_package){
+                struct merkle_tree_node* target_chunk = get_chunk(target_package->package, hash);
+                if (NULL != target_chunk){
+                    
+                } else {
+                    printf("Unable to request chunk, chunk hash does not belong to package");
+                }
+            } else{
+                printf(" Unable to request chunk, package is not managed");
+            }
+        } else {
+            printf("Unable to request chunk, peer not in list\n");
+        }
+
+        // Free allocated memory
+        free(ip_port);
+        free(identifier);
+        free(hash);
         return 1;
     }
 

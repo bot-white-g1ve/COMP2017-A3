@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <chk/pkgchk.h>
+#include <bpkg.h>
 #include <debug/debug.h>
 #include <utils/str.h>
 #include <tree/merkletree.h>
@@ -16,6 +16,7 @@
 #include <crypt/sha256.h>
 #include <stdbool.h>
 #include <config.h>
+#include <globals.h>
 
 #define SHA256_HEXLEN (64)
 
@@ -973,7 +974,7 @@ void bpkg_obj_destroy(struct bpkg_obj* obj) {
 /**
  * Function to check if all chunks are complete
 */
-const char* bpkg_complete_check(struct bpkg_obj* bpkg, char* directory) { 
+char* bpkg_complete_check(struct bpkg_obj* bpkg, char* directory) { 
     char* file_path = concat_file_path(directory, bpkg->filename);
 
     check_chunks_completed(bpkg->merkle_tree->root, file_path, bpkg->nchunks);
@@ -1014,4 +1015,63 @@ const char* bpkg_complete_check(struct bpkg_obj* bpkg, char* directory) {
     free_queue(queue);  // Clean up the queue
 
     return all_chunks_complete ? "COMPLETED" : "INCOMPLETE";
+}
+
+struct merkle_tree_node* get_chunk(struct bpkg_obj* bpkg, const char* hash) {
+    if (bpkg == NULL || bpkg->merkle_tree == NULL || bpkg->merkle_tree->root == NULL) {
+        d_print("get_chunk", "Invalid Merkle tree data.\n");
+        return NULL;
+    }
+
+    // Initialize queue for BFS
+    struct Queue* queue = createQueue();
+    enqueue(queue, bpkg->merkle_tree->root);
+
+    struct merkle_tree_node* found_node = NULL;
+
+    while (!is_queue_empty(queue)) {
+        struct merkle_tree_node* current = dequeue(queue);
+
+        if (current->is_leaf == 1) {
+            if (strncmp(current->expected_hash, hash, SHA256_HEXLEN) == 0) {
+                found_node = current;
+                break;
+            }
+        }
+
+        // Enqueue child nodes
+        if (current->left != NULL) {
+            enqueue(queue, current->left);
+        }
+        if (current->right != NULL) {
+            enqueue(queue, current->right);
+        }
+    }
+
+    free_queue(queue);  // Clean up the queue
+    return found_node;
+}
+
+int write_data_to_file(const char* file_path, uint32_t offset, const char* data, uint16_t data_len) {
+    int fd = open(file_path, O_WRONLY);
+    if (fd < 0) {
+        perror("Open file failed");
+        return -1;
+    }
+
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+        perror("Seek file failed");
+        close(fd);
+        return -1;
+    }
+
+    ssize_t bytes_written = write(fd, data, data_len);
+    if (bytes_written < 0) {
+        perror("Write file failed");
+        close(fd);
+        return -1;
+    }
+
+    close(fd);
+    return 0;
 }

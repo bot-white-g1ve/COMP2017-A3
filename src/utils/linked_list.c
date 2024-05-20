@@ -106,3 +106,21 @@ void free_packages() {
     pthread_mutex_unlock(&package_list_mutex);
 }
 
+PackageNode* get_package(const char* ident) {
+    pthread_mutex_lock(&package_list_mutex);
+
+    PackageNode* current = head;
+
+    while (current != NULL) {
+        if (strncmp(current->package->ident, ident, 20) == 0) {
+            return current;
+        }
+        current = current->next;
+    }
+
+    pthread_mutex_unlock(&package_list_mutex);
+
+    return NULL;
+}
+
+
