@@ -196,7 +196,8 @@ int process_command(char* command){
 
         if (NULL != package){
             d_print("process_command.ADDPACKAGE", "package's filename is %s", package->filename);
-            bpkg_file_check(package);
+            struct bpkg_query qry = bpkg_file_check(package);
+            bpkg_query_destroy(&qry);
             add_package(package);
         } else {
             d_error("process_command.ADDPACKAGE", "Failed to load package");
