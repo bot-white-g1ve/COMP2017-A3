@@ -16,6 +16,7 @@ extern void *server_thread(void* arg);
 extern void *client_thread(void* arg);
 extern void client_socket_disconnect(int sock);
 extern void client_socket_fetch(int sock, struct merkle_tree_node* target_chunk, const char* identifier, const char* hash);
+extern void client_socket_fetch_remaining(int sock, struct merkle_tree_node* target_chunk, const char* identifier, const char* hash, uint32_t current_offset, uint32_t size);
 extern void ping_peers();
 extern int is_peer_exist(const char* peer);
 extern void print_peer_list();
