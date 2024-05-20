@@ -93,7 +93,8 @@ void* tiny_server_thread(void* arg){
                         d_print("tiny_server_thread", "res packet sent");
                         send(new_socket, &res_packet, PACKET_LEN, 0);
                     } else {
-                        d_error("tiny_server_thread", "Failed to create RES packet");
+                        d_print("tiny_server_thread", "Failed to create RES packet");
+                        send(new_socket, &res_packet, PACKET_LEN, 0);
                     }
                 } else {
                     d_error("tiny_server_thread", "Package not managed");
@@ -329,36 +330,40 @@ void client_socket_fetch(int sock, struct merkle_tree_node* target_chunk, const 
     // Handle the received RES packet
     d_print("client_socket_fetch", "res_packet.msg_code is %hu", res_packet.msg_code);
     if (res_packet.msg_code == 0x07) { // Assuming 0x07 is the code for RES
-        d_print("client_socket_fetch", "the msg_code is 0x07, correct");
-        // Extract offset, data length, and data from the received packet
-        uint32_t offset;
-        uint16_t data_len;
-        memcpy(&offset, res_packet.pl.data, sizeof(uint32_t));
-        memcpy(&data_len, res_packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN, sizeof(uint16_t));
-        uint8_t* data = res_packet.pl.data + sizeof(uint32_t);
-        d_print("client_socket_fetch", "successfully parse the res packet");
+        if (res_packet.error == 0){
+            d_print("client_socket_fetch", "the msg_code is 0x07, correct");
+            // Extract offset, data length, and data from the received packet
+            uint32_t offset;
+            uint16_t data_len;
+            memcpy(&offset, res_packet.pl.data, sizeof(uint32_t));
+            memcpy(&data_len, res_packet.pl.data + sizeof(uint32_t) + MAX_DATA_LEN, sizeof(uint16_t));
+            uint8_t* data = res_packet.pl.data + sizeof(uint32_t);
+            d_print("client_socket_fetch", "successfully parse the res packet");
 
-        // Get the package object using the identifier
-        struct PackageNode* packageNode = get_package(identifier);
-        d_print("client_socket_fetch", "packageNode get");
-        if (packageNode == NULL) {
-            d_error("client_socket_fetch", "Package not found\n");
-            return;
-        }
-        struct bpkg_obj* package = packageNode->package;
-        // Construct the file path
-        char* file_path = concat_file_path(directory, package->filename);
-        d_print("client_socket_fetch", "the file_path is %s", file_path);
+            // Get the package object using the identifier
+            struct PackageNode* packageNode = get_package(identifier);
+            d_print("client_socket_fetch", "packageNode get");
+            if (packageNode == NULL) {
+                d_error("client_socket_fetch", "Package not found\n");
+                return;
+            }
+            struct bpkg_obj* package = packageNode->package;
+            // Construct the file path
+            char* file_path = concat_file_path(directory, package->filename);
+            d_print("client_socket_fetch", "the file_path is %s", file_path);
 
-        // Write the received data to the file
-        d_print("client_socket_fetch", "write_data_to_file is called");
-        if (write_data_to_file(file_path, offset, (char*)data, data_len) < 0) {
-            d_error("client_socket_fetch", "Failed to write data to file\n");
+            // Write the received data to the file
+            d_print("client_socket_fetch", "write_data_to_file is called");
+            if (write_data_to_file(file_path, offset, (char*)data, data_len) < 0) {
+                d_error("client_socket_fetch", "Failed to write data to file\n");
+            } else {
+                d_print("client_socket_fetch", "Data written to file successfully\n");
+            }
+
+            //free(file_path);
         } else {
-            d_print("client_socket_fetch", "Data written to file successfully\n");
+            d_print("client_socket_fetch", "server respond with error");
         }
-
-        //free(file_path);
     } else {
         d_error("client_socket_fetch","Unexpected packet received\n");
     }
