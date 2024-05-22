@@ -4,7 +4,6 @@ resources
 .DS_Store
 *.DSYM
 debug.txt
-tests
 debug_*.txt
 btide
 .fuse_hidden000001f700000004
