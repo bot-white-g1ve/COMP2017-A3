@@ -64,5 +64,9 @@ To ensure the data is fetched successfully, an expected .data file is put in tes
 - Expected: Written in tests/part2/test8/node1.exp, and in tests/part2/test8/file1.data (expected .data file)
 
 # Test 9 - Edge Case: Connect Failure
-Test if 
+Test if a node can detect a connection failure. It should output "Unable to connect to request peer" when such a failure occurs.
+- Testing Command: CONNECT, QUIT
+
+- Input: Written in p2test.sh, the commands are written into the pipe file when running
+- Expected: Written in tests/part2/test9/node1.exp
 
