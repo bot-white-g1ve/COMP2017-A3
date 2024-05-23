@@ -147,7 +147,7 @@ int process_command(char* command){
             d_error("process_command", "No second token");
             return 0;
         } if (!is_peer_exist(token)){
-            printf("Unknown peer,not connected\n");
+            printf("Unknown peer, not connected\n");
             return 1;
         }
 
