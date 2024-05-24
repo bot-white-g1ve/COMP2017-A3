@@ -17,8 +17,12 @@ file "find_binary.sh" is used to find binaries.
 
 file "p1test.sh" and "p2test.sh" are test scripts for part1 and part2
 
+**For testing instructions, please refer to p1test.md and p2test.md**
+
+**For high performance benchmark, please refer to high_performance_report.pdf**
+
 # Binaries in the repo
-There are binaries in "tests" folder and "resources" folder.
+There are binaries in "tests" folder and "resources" folder, also for "high_performance_report.pdf"
 
 The binaries in "tests" folder are .data files. These are used specially for testing, and there is no way to remove them without influencing the auto-test.
 
@@ -43,3 +47,16 @@ The testing data for part1 is put in folder "tests/data"
 As in part2, we have a server-client structure and they hold different data, the testing data for part2 is put in folder "tests/server_data" and "tests/client_data"
 
 The .in files and .exp files are put in "tests/part1" and "tests/part2". They are divided and allocated to different testcases.
+
+# Structure of "high performance"
+For details of how to run the benchmark test and the result, refer to "high_performance_report.pdf"
+
+bpkg2.c is the second version of bpkg.c where I split reading file and construct nodes to increase the running speed
+
+bpkg3.c is the third version where I use multiple threads to construct the nodes, which further increases the running speed
+
+merkle tree.c is build because the old version of merkle tree.c can’t support new operations.
+
+hpcheck.c is used to record the time of running the program.
+
+result.xlsx is the file recording the results and used for generating the graph.

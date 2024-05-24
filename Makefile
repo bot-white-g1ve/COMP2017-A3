@@ -27,6 +27,15 @@ pkgtest: src/pkgtest.c src/chk/pkgchk.c src/utils/queue.c src/utils/str.c src/tr
 btide: src/btide.c src/debug/debug.c src/config.c src/peer.c src/package.c src/bpkg.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/crypt/sha256.c src/utils/linked_list.c
 	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
 
+hpcheck: src/chk/pkgchk.c high_performance/hpcheck.c src/utils/queue.c src/utils/str.c src/tree/merkletree.c src/debug/debug.c src/crypt/sha256.c
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
+
+hpcheck2: high_performance/bpkg2.c high_performance/hpcheck.c src/utils/queue.c src/utils/str.c high_performance/merkle_tree.c src/debug/debug.c src/crypt/sha256.c
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
+
+hpcheck3: high_performance/bpkg3.c high_performance/hpcheck.c src/utils/queue.c src/utils/str.c high_performance/merkle_tree.c src/debug/debug.c src/crypt/sha256.c
+	$(CC) $^ $(INCLUDE) $(CFLAGS) $(LDFLAGS) -o $@
+
 # Alter your build for p1 tests to build unit-tests for your
 # merkle tree, use pkgchk to help with what to test for
 # as well as some basic functionality
