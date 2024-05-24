@@ -137,6 +137,13 @@ int process_command(char* command){
             return 1;
         }
 
+        // Wait for thread to end
+        d_print("process_command.CONNECT", "wait for thread to end");
+        if (pthread_join(client_tid, NULL) != 0) {
+            d_error("process_command", "Failed to join client thread");
+            return 1;
+        }
+
         return 1;
     }
 

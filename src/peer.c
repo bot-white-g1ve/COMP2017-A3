@@ -294,9 +294,11 @@ void *client_thread(void* arg) {
         close(sock);
     }
 
+    d_print("client_thread", "this line is reached");
     free(((char**)arg)[0]);
     free(((char**)arg)[1]);
     free(arg);
+    d_print("client_thread", "client_thread quit");
     pthread_exit(NULL);
 }
 

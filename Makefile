@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wvla -g -fsanitize=address
+CFLAGS=-Wall -Wvla -g
 LDFLAGS=-lm -lpthread
 INCLUDE=-Iinclude
 
