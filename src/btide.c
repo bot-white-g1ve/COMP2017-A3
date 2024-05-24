@@ -285,7 +285,7 @@ int process_command(char* command){
                     printf("Unable to request chunk, chunk hash does not belong to package");
                 }
             } else{
-                printf(" Unable to request chunk, package is not managed");
+                printf("Unable to request chunk, package is not managed");
             }
         } else {
             printf("Unable to request chunk, peer not in list\n");
